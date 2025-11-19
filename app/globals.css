@@ -7,22 +7,62 @@
   --fb-text-main: #050505;
   --fb-text-secondary: #65676B;
   --fb-divider: #CED0D4;
-  --fb-hover: #E4E6EB;
-}
-
-@theme inline {
-  --color-fb-blue: var(--fb-blue);
-  --color-fb-bg: var(--fb-bg);
-  --color-fb-card: var(--fb-card);
-  --color-fb-text-main: var(--fb-text-main);
-  --color-fb-text-secondary: var(--fb-text-secondary);
-  --color-fb-divider: var(--fb-divider);
-  --color-fb-hover: var(--fb-hover);
+  --background: #ffffff;
+  --foreground: #111827;
 }
 
 body {
-  background-color: var(--fb-bg);
-  color: var(--fb-text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  background: var(--color-fb-bg);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Premium Typography Utilities */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-serif);
+}
+
+/* Article Content Styling */
+.prose p {
+  margin-bottom: 1.75em;
+  font-size: 19px;
+  line-height: 1.75;
+  color: #292929;
+}
+
+.prose h3 {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  color: #111827;
+  margin-top: 2.5em;
+  margin-bottom: 1em;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.prose blockquote {
+  border-left-width: 4px;
+  border-left-color: #0F4C81;
+  background: #F8FAFC;
+  padding: 1.5rem;
+  font-style: italic;
+  color: #374151;
+  border-radius: 0 8px 8px 0;
+  margin: 2.5em 0;
+}
+
+.prose strong {
+  color: #111827;
+  font-weight: 700;
+}
+
+.prose img {
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  margin: 2em 0;
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import ArticleHeader from '@/components/ArticleHeader';
-import AuthorityBadge from '@/components/AuthorityBadge';
+import TrustBadge from '@/components/TrustBadge';
+import KeyTakeaways from '@/components/KeyTakeaways';
 import FBComments from '@/components/FBComments';
 import PixelTracker from '@/components/PixelTracker';
 import UrlPreserver from '@/components/UrlPreserver';
@@ -73,72 +74,70 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     const { pixelId, ctaUrl } = getArticleConfig(slug);
 
     return (
-        <div className="min-h-screen bg-white pb-10 font-serif">
+        <div className="min-h-screen bg-white pb-20 font-serif selection:bg-blue-100 selection:text-blue-900">
             <PixelTracker pixelId={pixelId} />
             <UrlPreserver />
             <ArticleHeader />
 
-
-
-            <main className="pt-6 px-4 max-w-xl mx-auto">
+            <main className="pt-8 px-5 max-w-[640px] mx-auto">
 
                 {/* Article Header */}
-                <div className="mb-6">
-                    <div className="flex gap-2 mb-3">
-                        <AuthorityBadge type="verified" />
-                        <AuthorityBadge type="medical" />
+                <div className="mb-8">
+                    <div className="flex flex-wrap gap-2 mb-5">
+                        <TrustBadge type="fact-checked" />
+                        <TrustBadge type="medically-reviewed" />
                     </div>
-                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight mb-3 font-serif">
+                    <h1 className="text-[32px] leading-[1.15] font-black text-gray-900 mb-4 font-serif tracking-tight">
                         {article.title}
                     </h1>
-                    <p className="text-lg text-gray-600 leading-relaxed font-sans">
+                    <p className="text-[19px] text-gray-600 leading-relaxed font-sans font-light">
                         {article.subtitle}
                     </p>
                 </div>
 
                 {/* Byline */}
-                <div className="flex items-center justify-between border-y border-gray-100 py-4 mb-6 font-sans">
+                <div className="flex items-center justify-between border-t border-b border-gray-100 py-5 mb-8 font-sans">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden border border-gray-200">
+                        <div className="w-11 h-11 bg-gray-100 rounded-full overflow-hidden ring-2 ring-white shadow-sm">
                             <img src="https://picsum.photos/seed/doc/100" alt="Author" className="w-full h-full object-cover" />
                         </div>
-                        <div>
-                            <div className="flex items-center gap-1">
-                                <p className="text-[15px] font-bold text-[#1877F2] hover:underline cursor-pointer">{article.author}</p>
-                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-[#1877F2]">
+                        <div className="flex flex-col justify-center">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-bold text-gray-900">{article.author}</span>
+                                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-[#1877F2]" aria-label="Verified">
                                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                                 </svg>
                             </div>
-                            <p className="text-xs text-gray-500">{article.date}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span>{article.date}</span>
+                                <span>•</span>
+                                <span>4 min read</span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="text-right hidden sm:block">
-                        <p className="text-xs text-gray-500">Medically Reviewed By</p>
-                        <p className="text-sm font-bold text-green-700 flex items-center justify-end gap-1">
-                            {article.reviewer}
-                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                            </svg>
-                        </p>
                     </div>
                 </div>
 
+                {/* Key Takeaways */}
+                <KeyTakeaways />
+
                 {/* Article Content */}
-                <article className="prose prose-lg max-w-none text-gray-800 font-serif leading-relaxed">
-                    <img src={article.image} alt="Article Image" className="w-full rounded-lg mb-8 shadow-sm" />
+                <article className="prose prose-lg max-w-none text-gray-800 font-serif leading-loose">
+                    <img src={article.image} alt="Article Image" className="w-full rounded-xl mb-10 shadow-md" />
                     <div dangerouslySetInnerHTML={{ __html: article.content }} />
                 </article>
 
                 {/* Subtle CTA Link */}
-                <div className="my-10 text-center">
-                    <p className="text-lg font-serif mb-2">Curious about the science?</p>
-                    <Link href={ctaUrl} className="text-[#1877F2] font-bold text-xl hover:underline font-sans">
-                        Click here to read the full clinical study on the 5-Second Ritual »
+                <div className="my-12 p-8 bg-blue-50 rounded-xl text-center border border-blue-100 shadow-sm">
+                    <p className="text-xl font-serif mb-4 text-gray-900 font-medium">Curious about the science?</p>
+                    <Link href={ctaUrl} className="inline-block bg-[#0F4C81] text-white px-8 py-4 rounded-lg font-sans font-bold text-lg hover:bg-[#0a3b66] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                        Read the Clinical Study »
                     </Link>
+                    <p className="mt-4 text-xs text-gray-500 font-sans">Secure, verified link to official research.</p>
                 </div>
 
                 {/* Facebook Comments Section */}
-                <div className="font-sans">
+                <div className="font-sans border-t border-gray-200 pt-10">
+                    <h3 className="text-xl font-bold text-gray-900 mb-6">Discussion</h3>
                     <FBComments />
                 </div>
             </main>

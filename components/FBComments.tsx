@@ -34,8 +34,8 @@ const Comment = ({ author, avatar, content, time, likes: initialLikes, hasReplie
             </div>
             <div className="flex-1">
                 <div className="bg-[#F0F2F5] rounded-2xl px-3 py-2 inline-block relative group">
-                    <h4 className="font-bold text-[13px] text-[#050505] leading-snug cursor-pointer hover:underline">{author}</h4>
-                    <p className="text-[15px] text-[#050505] leading-snug">{content}</p>
+                    <div className="font-bold text-[13px] text-[#050505] leading-snug cursor-pointer hover:underline font-sans">{author}</div>
+                    <p className="text-[15px] text-[#050505] leading-snug font-sans">{content}</p>
 
                     {/* Like Count Bubble */}
                     {likes > 0 && (
@@ -45,13 +45,13 @@ const Comment = ({ author, avatar, content, time, likes: initialLikes, hasReplie
                                     <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
                                 </svg>
                             </div>
-                            <span className="text-[11px] text-[#65676B] font-normal">{likes}</span>
+                            <span className="text-[11px] text-[#65676B] font-normal font-sans">{likes}</span>
                         </div>
                     )}
                 </div>
 
                 {/* Action Links */}
-                <div className="flex items-center gap-3 mt-0.5 ml-3">
+                <div className="flex items-center gap-3 mt-0.5 ml-3 font-sans">
                     <span
                         className={`text-[12px] font-bold cursor-pointer hover:underline ${isLiked ? 'text-[#1877F2]' : 'text-[#65676B]'}`}
                         onClick={handleLike}
@@ -69,7 +69,7 @@ const Comment = ({ author, avatar, content, time, likes: initialLikes, hasReplie
 
                 {/* Reply Input */}
                 {showReplyInput && (
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex gap-2 font-sans">
                         <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0"></div>
                         <div className="flex-1 bg-[#F0F2F5] rounded-2xl px-3 py-1">
                             <input type="text" placeholder="Write a reply..." className="w-full bg-transparent border-none focus:ring-0 text-[13px] placeholder-gray-500 outline-none" autoFocus />
@@ -79,7 +79,7 @@ const Comment = ({ author, avatar, content, time, likes: initialLikes, hasReplie
 
                 {/* View Previous Replies */}
                 {hasReplies && (
-                    <div className="mt-2 ml-2 flex items-center gap-2 cursor-pointer group">
+                    <div className="mt-2 ml-2 flex items-center gap-2 cursor-pointer group font-sans">
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-[#65676B] group-hover:text-[#050505] -rotate-180">
                             <path d="M19 15l-6 6-1.42-1.42L15.17 16H4V4h2v10h9.17l-3.59-3.58L13 9l6 6z" />
                         </svg>
@@ -95,8 +95,8 @@ export default function FBComments() {
     return (
         <div className="bg-white p-4 border-t border-gray-200 mt-8 font-sans">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-[#050505] text-lg">Comments</h3>
-                <div className="flex items-center gap-1 text-[#65676B] text-sm cursor-pointer">
+                <h3 className="font-bold text-[#050505] text-lg font-sans">Comments</h3>
+                <div className="flex items-center gap-1 text-[#65676B] text-sm cursor-pointer font-sans">
                     <span>Most Relevant</span>
                     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                         <path d="M7 10l5 5 5-5z" />
