@@ -2,58 +2,55 @@ import React from 'react';
 import ArticleHeader from '@/components/ArticleHeader';
 import AuthorityBadge from '@/components/AuthorityBadge';
 import FBComments from '@/components/FBComments';
+import PixelTracker from '@/components/PixelTracker';
 import Link from 'next/link';
+import fs from 'fs';
+import path from 'path';
+import { notFound } from 'next/navigation';
 
-// Mock data function
+// Helper to get pixel ID
+function getPixelId(slug: string) {
+    try {
+        const configPath = path.join(process.cwd(), 'data', 'pixel-config.json');
+        if (fs.existsSync(configPath)) {
+            const fileContents = fs.readFileSync(configPath, 'utf8');
+            const config = JSON.parse(fileContents);
+            return config.articles[slug] || config.default;
+        }
+    } catch (e) {
+        console.error('Error reading pixel config:', e);
+    }
+    return '1213472546398709'; // Fallback
+}
+
+// Get article from JSON database
 async function getArticle(slug: string) {
-    return {
-        id: slug,
-        title: 'The "5-Second Morning Ritual" That Top Doctors Are Calling a "Game Changer" for Metabolism',
-        subtitle: 'It’s not a diet. It’s not a pill. It’s a simple biological hack that has been hidden in plain sight for decades.',
-        author: 'Sarah Jenkins',
-        reviewer: 'Dr. A. Peterson, MD',
-        date: 'Updated: 2 hours ago',
-        content: `
-      <p class="mb-6 font-bold text-lg leading-relaxed">If you've ever felt like your metabolism is "broken" no matter how little you eat, you are not alone. But a new investigative report reveals the culprit might not be your diet at all.</p>
-      
-      <p class="mb-6 leading-relaxed">For decades, the weight loss industry has told us to "eat less and move more." It sounds logical. It sounds scientific. But for millions of people, it simply does not work.</p>
-      
-      <p class="mb-6 leading-relaxed">Why? Because they were ignoring a tiny biological switch inside your cells.</p>
-      
-      <h3 class="font-bold text-2xl mt-8 mb-4 text-gray-900 font-sans">The "Metabolic Hibernation" Theory</h3>
-      
-      <p class="mb-6 leading-relaxed">Dr. Peterson, a leading researcher in metabolic health, explains: "When you cut calories drastically, your body thinks it's starving. It panics. It goes into what we call 'Metabolic Hibernation.' It holds onto every gram of fat for survival."</p>
-      
-      <div class="bg-blue-50 border-l-4 border-blue-500 p-6 my-8 italic text-gray-800 text-lg font-medium">
-        "It's not your fault. Your body is fighting against you because it thinks it's saving your life." - Dr. Peterson
-      </div>
-
-      <p class="mb-6 leading-relaxed">This is the <strong>Problem Mechanism</strong>. It's the invisible wall that stops you from seeing results, no matter how hard you try. It's why you can eat salad for a week and lose nothing, while your friend eats pizza and stays thin.</p>
-      
-      <p class="mb-6 leading-relaxed">But here is the good news. There is a way to "flip the switch" back on. And it takes less than 5 seconds every morning.</p>
-      
-      <h3 class="font-bold text-2xl mt-8 mb-4 text-gray-900 font-sans">The Solution Mechanism: The 5-Second Ritual</h3>
-      
-      <p class="mb-6 leading-relaxed">This ritual doesn't involve a treadmill. It doesn't involve kale smoothies. It involves a specific combination of nutrients taken right when you wake up that signals to your body: "We are safe. Burn fuel."</p>
-      
-      <p class="mb-6 leading-relaxed">Clinical trials have shown that this specific trigger can increase metabolic rate by up to 300% within the first hour of waking up.</p>
-
-      <p class="mb-6 leading-relaxed">Imagine waking up, doing this simple 5-second hack, and knowing that your body is burning fat all day long, even while you sit at your desk or watch TV.</p>
-      
-      <p class="mb-6 leading-relaxed">It sounds too good to be true, but the science is undeniable. Thousands of men and women are already using this ritual to reclaim their health and energy.</p>
-      
-      <p class="mb-8 leading-relaxed">If you are ready to stop fighting your body and start working with it, you need to see the evidence for yourself.</p>
-    `,
-        image: 'https://picsum.photos/seed/ritual/800/600',
-    };
+    try {
+        const articlesPath = path.join(process.cwd(), 'data', 'articles.json');
+        if (fs.existsSync(articlesPath)) {
+            const fileContents = fs.readFileSync(articlesPath, 'utf8');
+            const articles = JSON.parse(fileContents);
+            return articles.find((a: any) => a.slug === slug) || null;
+        }
+    } catch (e) {
+        console.error('Error reading articles database:', e);
+    }
+    return null;
 }
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
     const article = await getArticle(slug);
 
+    if (!article) {
+        notFound();
+    }
+
+    const pixelId = getPixelId(slug);
+
     return (
         <div className="min-h-screen bg-white pb-10 font-serif">
+            <PixelTracker pixelId={pixelId} />
             <ArticleHeader />
 
             {/* Live Readership Bar */}
