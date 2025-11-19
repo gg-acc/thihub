@@ -1,64 +1,67 @@
 import Header from '@/components/Header';
-import Post from '@/components/Post';
+import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-fb-bg pb-10">
+    <div className="min-h-screen bg-white pb-10 font-serif">
       <Header />
 
-      <main className="pt-16 px-0 sm:px-4 max-w-xl mx-auto">
-        {/* Create Post Input Placeholder */}
-        <div className="bg-fb-card p-3 mb-4 shadow-sm rounded-none sm:rounded-lg flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-            <div className="w-full h-full bg-gray-300 flex items-center justify-center text-gray-500">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              </svg>
-            </div>
+      <main className="pt-16 px-4 max-w-xl mx-auto">
+        {/* Breaking News Banner */}
+        <div className="bg-red-600 text-white text-xs font-bold px-2 py-1 inline-block uppercase tracking-wider mb-3">
+          Special Report
+        </div>
+
+        {/* Main Headline - Suspenseful */}
+        <h1 className="text-3xl font-bold text-gray-900 leading-tight mb-4">
+          The "5-Second Morning Ritual" That Top Doctors Are Calling a "Game Changer" for Metabolism
+        </h1>
+
+        {/* Subheadline / Teaser */}
+        <p className="text-lg text-gray-700 leading-relaxed mb-6">
+          It’s not a diet. It’s not a pill. It’s a simple biological hack that has been hidden in plain sight for decades. Why are we only hearing about it now?
+        </p>
+
+        {/* Author/Authority */}
+        <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-6">
+          <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden">
+            <img src="https://picsum.photos/seed/doc/100" alt="Dr. Smith" className="w-full h-full object-cover" />
           </div>
-          <div className="flex-1 bg-fb-bg rounded-full h-10 flex items-center px-4 text-fb-text-secondary cursor-pointer hover:bg-gray-200 transition-colors">
-            What's on your mind?
-          </div>
-          <div className="flex items-center gap-3 text-fb-text-secondary">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-green-500">
-              <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-            </svg>
+          <div>
+            <p className="text-sm font-bold text-gray-900">Investigative Report by Sarah Jenkins</p>
+            <p className="text-xs text-gray-500">Medically Reviewed by Dr. A. Peterson, MD</p>
           </div>
         </div>
 
-        {/* Feed */}
-        <Post
-          id="top-health-1"
-          author="Top Health Daily"
-          time="2h"
-          content="Discover the 7 superfoods that can boost your immune system naturally! 🥦🍎 #Health #Wellness #Nutrition"
-          image="https://picsum.photos/seed/health1/800/600"
-          likes={1205}
-          comments={45}
-          shares={12}
-        />
+        {/* Call to Action / Read Article */}
+        <Link href="/articles/morning-ritual-exposed" className="block group">
+          <div className="relative overflow-hidden rounded-lg mb-4 shadow-md">
+            <img src="https://picsum.photos/seed/ritual/800/600" alt="Morning Ritual" className="w-full h-64 object-cover transform group-hover:scale-105 transition-transform duration-500" />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <span className="text-white font-bold flex items-center gap-2">
+                Read Full Report
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </span>
+            </div>
+          </div>
+        </Link>
 
-        <Post
-          id="top-health-2"
-          author="Tech Trends"
-          time="5h"
-          content="The future of AI is here. Are we ready for what comes next? 🤖"
-          image="https://picsum.photos/seed/tech1/800/600"
-          likes={892}
-          comments={120}
-          shares={56}
-        />
-
-        <Post
-          id="top-health-3"
-          author="Travel Diaries"
-          time="1d"
-          content="Just arrived in Bali! The views are absolutely breathtaking. 🌴☀️"
-          image="https://picsum.photos/seed/travel1/800/600"
-          likes={3400}
-          comments={210}
-          shares={89}
-        />
+        {/* Social Proof Snippets */}
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+          <h3 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">What Readers Are Saying</h3>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="text-yellow-500">★★★★★</div>
+              <p className="text-sm text-gray-600 italic">"I was skeptical, but the science makes sense. I tried it and..."</p>
+            </div>
+            <div className="flex gap-2">
+              <div className="text-yellow-500">★★★★★</div>
+              <p className="text-sm text-gray-600 italic">"Finally, someone explains the root cause instead of just treating symptoms."</p>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
