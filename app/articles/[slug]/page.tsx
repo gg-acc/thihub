@@ -6,8 +6,6 @@ import FBComments from '@/components/FBComments';
 import PixelTracker from '@/components/PixelTracker';
 import UrlPreserver from '@/components/UrlPreserver';
 import CinematicHero from '@/components/CinematicHero';
-import AnalysisSection from '@/components/AnalysisSection';
-import StickyCTA from '@/components/StickyCTA';
 import Link from 'next/link';
 import fs from 'fs';
 import path from 'path';
