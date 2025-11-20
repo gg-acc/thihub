@@ -93,6 +93,9 @@ export default function CreateArticlePage() {
                 throw new Error(data.error || 'Failed to generate article');
             }
 
+            // Wait a moment for blob storage to propagate
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
             // Redirect to editor
             router.push(`/admin/articles/${data.slug}`);
 

@@ -28,22 +28,39 @@ export default function EditArticlePage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/articles')
-            .then(res => res.json())
-            .then((data: Article[]) => {
+        let retries = 0;
+        const maxRetries = 3;
+
+        const fetchArticle = async () => {
+            try {
+                const res = await fetch('/api/articles', { cache: 'no-store' });
+                const data: Article[] = await res.json();
                 const found = data.find(a => a.slug === slug);
+
                 if (found) {
                     setArticle(found);
+                    setLoading(false);
+                } else if (retries < maxRetries) {
+                    // Retry after a delay
+                    retries++;
+                    setTimeout(fetchArticle, 1000 * retries); // Exponential backoff
                 } else {
                     alert('Article not found');
                     router.push('/admin');
+                    setLoading(false);
                 }
-                setLoading(false);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error(err);
-                setLoading(false);
-            });
+                if (retries < maxRetries) {
+                    retries++;
+                    setTimeout(fetchArticle, 1000 * retries);
+                } else {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchArticle();
     }, [slug, router]);
 
     const handleSave = async (updatedArticle: Article) => {
