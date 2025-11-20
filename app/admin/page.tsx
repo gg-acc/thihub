@@ -223,7 +223,16 @@ export default function AdminDashboard() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                         <h2 className="text-lg font-bold text-gray-800">Article Management</h2>
-                        {saveStatus && <span className="text-green-600 font-medium text-sm animate-pulse">{saveStatus}</span>}
+                        <div className="flex items-center gap-4">
+                            {saveStatus && <span className="text-green-600 font-medium text-sm animate-pulse">{saveStatus}</span>}
+                            <Link
+                                href="/admin/create"
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Create New Article
+                            </Link>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 min-h-[600px]">
