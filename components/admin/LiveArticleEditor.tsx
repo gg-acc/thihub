@@ -74,7 +74,7 @@ interface Article {
     ctaText?: string;
     ctaTitle?: string;
     ctaDescription?: string;
-    keyTakeaways?: { title: string; content: string }[];
+    keyTakeaways?: { title: string; content: string }[] | null;
     comments?: any[];
 }
 
@@ -159,7 +159,12 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
 
     const handleSave = async () => {
         setSaving(true);
-        await onSave(article);
+        // Ensure keyTakeaways is null if undefined so it gets sent in JSON
+        const articleToSave = {
+            ...article,
+            keyTakeaways: article.keyTakeaways || null
+        };
+        await onSave(articleToSave);
         setSaving(false);
     };
 
@@ -311,7 +316,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                         <div className="absolute top-2 right-2 flex items-center gap-2">
                             <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Editable Section</span>
                             <button
-                                onClick={() => setArticle({ ...article, keyTakeaways: undefined })}
+                                onClick={() => setArticle({ ...article, keyTakeaways: undefined })} // Keep as undefined for UI hiding, but we need to handle save
                                 className="bg-red-100 hover:bg-red-200 text-red-600 p-1 rounded transition-colors"
                                 title="Remove Section"
                             >

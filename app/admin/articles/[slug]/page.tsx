@@ -16,7 +16,7 @@ interface Article {
     ctaText?: string;
     ctaTitle?: string;
     ctaDescription?: string;
-    keyTakeaways?: { title: string; content: string }[];
+    keyTakeaways?: { title: string; content: string }[] | null;
     comments?: any[];
 }
 

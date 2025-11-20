@@ -56,7 +56,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { slug, comments, ctaText, ctaTitle, ctaDescription, title, subtitle, content, author, reviewer, date, image } = body;
+        const { slug, comments, ctaText, ctaTitle, ctaDescription, title, subtitle, content, author, reviewer, date, image, keyTakeaways } = body;
 
         if (!slug) {
             return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
@@ -79,6 +79,11 @@ export async function POST(request: Request) {
             if (reviewer) articles[articleIndex].reviewer = reviewer;
             if (date) articles[articleIndex].date = date;
             if (image) articles[articleIndex].image = image;
+
+            // Explicitly handle keyTakeaways (allow null to remove)
+            if (keyTakeaways !== undefined) {
+                articles[articleIndex].keyTakeaways = keyTakeaways;
+            }
 
             await saveArticles(articles);
 
