@@ -100,3 +100,32 @@ export async function POST(request: Request) {
     }
 }
 
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const slug = searchParams.get('slug');
+
+        if (!slug) {
+            return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
+        }
+
+        let articles = await getArticles();
+        const initialLength = articles.length;
+        articles = articles.filter((a: any) => a.slug !== slug);
+
+        if (articles.length === initialLength) {
+            return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+        }
+
+        await saveArticles(articles);
+
+        // Revalidate the article page (it will be 404 now, but good to clear cache)
+        revalidatePath(`/articles/${slug}`);
+
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        console.error('Error deleting article:', e);
+        return NextResponse.json({ error: 'Failed to delete article' }, { status: 500 });
+    }
+}
