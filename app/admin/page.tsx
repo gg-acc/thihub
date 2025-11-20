@@ -144,9 +144,14 @@ export default function AdminDashboard() {
         if (!config) return;
         const currentArticleConfig = config.articles?.[slug];
 
-        const newArticleConfig: ArticleConfig = typeof currentArticleConfig === 'string'
-            ? { pixelId: currentArticleConfig, ctaUrl: '', [key]: value }
-            : { pixelId: '', ctaUrl: '', ...(currentArticleConfig as ArticleConfig), [key]: value };
+        let baseConfig: ArticleConfig;
+        if (typeof currentArticleConfig === 'string') {
+            baseConfig = { pixelId: currentArticleConfig, ctaUrl: '' };
+        } else {
+            baseConfig = (currentArticleConfig as ArticleConfig) || { pixelId: '', ctaUrl: '' };
+        }
+
+        const newArticleConfig: ArticleConfig = { ...baseConfig, [key]: value };
 
         setConfig({
             ...config,
