@@ -221,7 +221,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
 
                     {/* Content Overlay */}
                     <div className="relative z-10 w-full max-w-3xl mx-auto px-5 sm:px-6">
-                        <div className="flex flex-wrap gap-3 mb-6">
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
                             <span className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm shadow-sm">
                                 Investigative Report
                             </span>
@@ -229,7 +229,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                                 5 Min Read
                             </span>
                             {/* Integrated Trust Badges */}
-                            <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 uppercase tracking-wider">
                                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
                                     Fact Checked
@@ -248,7 +248,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                                 e.target.style.height = 'auto';
                                 e.target.style.height = e.target.scrollHeight + 'px';
                             }}
-                            className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.1] mb-6 tracking-tight drop-shadow-lg bg-transparent border-none focus:ring-0 p-0 resize-none overflow-hidden placeholder-white/50"
+                            className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.1] mb-6 tracking-tight drop-shadow-lg bg-transparent border-none focus:ring-0 p-0 resize-none overflow-hidden placeholder-white/50 break-words hyphens-auto"
                             placeholder="Article Title"
                             rows={1}
                             style={{ height: 'auto' }}
@@ -308,8 +308,8 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                 {/* Editable Key Takeaways */}
                 {article.keyTakeaways && article.keyTakeaways.length > 0 && (
                     <div className="bg-blue-50/50 border-l-4 border-[#0F4C81] p-6 my-8 rounded-r-lg shadow-sm group relative">
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Editable Section</span>
+                        <div className="absolute top-2 right-2 flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">Editable Section</span>
                             <button
                                 onClick={() => setArticle({ ...article, keyTakeaways: undefined })}
                                 className="bg-red-100 hover:bg-red-200 text-red-600 p-1 rounded transition-colors"
