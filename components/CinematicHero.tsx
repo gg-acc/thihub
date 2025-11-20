@@ -11,7 +11,7 @@ interface CinematicHeroProps {
 
 export default function CinematicHero({ image, title, subtitle, author, date, authorImage }: CinematicHeroProps) {
     return (
-        <div className="relative w-full min-h-[100vh] sm:min-h-[85vh] flex items-end pb-24 sm:pb-20 overflow-hidden">
+        <div className="relative w-full min-h-[85vh] sm:min-h-[85vh] flex items-end pb-24 sm:pb-20 overflow-hidden">
             {/* Background Image */}
             <div className="absolute inset-0 z-0">
                 <img
@@ -45,7 +45,7 @@ export default function CinematicHero({ image, title, subtitle, author, date, au
                     </div>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.1] mb-6 tracking-tight drop-shadow-lg break-words hyphens-auto">
+                <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.2] mb-6 tracking-tight drop-shadow-lg break-words hyphens-auto">
                     {title}
                 </h1>
 

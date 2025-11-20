@@ -213,7 +213,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                 </div>
 
                 {/* We render the CinematicHero but overlay inputs for editing */}
-                <div className="relative w-full min-h-[100vh] sm:min-h-[85vh] flex items-end pb-24 sm:pb-20 overflow-hidden">
+                <div className="relative w-full min-h-[85vh] sm:min-h-[85vh] flex items-end pb-24 sm:pb-20 overflow-hidden">
                     {/* Background Image */}
                     <div className="absolute inset-0 z-0">
                         <img
@@ -253,7 +253,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                                 e.target.style.height = 'auto';
                                 e.target.style.height = e.target.scrollHeight + 'px';
                             }}
-                            className="w-full text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.1] mb-6 tracking-tight drop-shadow-lg bg-transparent border-none focus:ring-0 p-0 resize-none overflow-hidden placeholder-white/50 break-words hyphens-auto"
+                            className="w-full text-4xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-black text-white leading-[1.2] mb-6 tracking-tight drop-shadow-lg bg-transparent border-none focus:ring-0 p-0 resize-none overflow-hidden placeholder-white/50 break-words hyphens-auto"
                             placeholder="Article Title"
                             rows={1}
                             style={{ height: 'auto' }}
