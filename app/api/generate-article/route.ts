@@ -1,50 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { put, head } from '@vercel/blob';
+import { createClient } from '@/utils/supabase/server';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const isProduction = process.env.VERCEL_ENV === 'production';
-const BLOB_URL = 'articles.json';
-
-async function getArticles() {
-    if (isProduction) {
-        try {
-            const blobExists = await head(BLOB_URL).catch(() => null);
-            if (blobExists) {
-                const response = await fetch(blobExists.url);
-                return await response.json();
-            }
-            return [];
-        } catch (e) {
-            console.error('Error reading from blob:', e);
-            return [];
-        }
-    } else {
-        const filePath = path.join(process.cwd(), 'data', 'articles.json');
-        if (fs.existsSync(filePath)) {
-            const fileData = fs.readFileSync(filePath, 'utf8');
-            return JSON.parse(fileData);
-        }
-        return [];
-    }
-}
-
-async function saveArticles(articles: any[]) {
-    if (isProduction) {
-        await put(BLOB_URL, JSON.stringify(articles, null, 4), {
-            access: 'public',
-            contentType: 'application/json',
-            addRandomSuffix: false,
-            allowOverwrite: true,
-        });
-    } else {
-        const filePath = path.join(process.cwd(), 'data', 'articles.json');
-        fs.writeFileSync(filePath, JSON.stringify(articles, null, 4));
-    }
-}
 
 export async function POST(request: Request) {
     try {
@@ -53,6 +12,14 @@ export async function POST(request: Request) {
                 { error: 'GEMINI_API_KEY is not set in environment variables.' },
                 { status: 500 }
             );
+        }
+
+        const supabase = await createClient();
+
+        // Check authentication
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const { rawText, pixelId, ctaUrl, slug: customSlug } = await request.json();
@@ -92,26 +59,26 @@ export async function POST(request: Request) {
             OUTPUT JSON SCHEMA:
         {
             "title": "The Main Headline (Exact Match)",
-                "subtitle": "The Subheadline (Exact Match)",
-                    "author": "Female Name (e.g. Sarah Jenkins)",
-                        "reviewer": "Medical Doctor Name (e.g. Dr. A. Peterson, MD)",
-                            "date": "Updated: 2 hours ago",
-                                "content": "<p>First paragraph...</p>...",
-                                    "keyTakeaways": [
-                                        { "title": "Short Title", "content": "One sentence summary" }
-                                    ],
-                                        "comments": [
-                                            {
-                                                "id": "c1",
-                                                "author": "Name",
-                                                "avatar": "https://picsum.photos/seed/c1/100",
-                                                "content": "Comment text",
-                                                "time": "2h",
-                                                "likes": 45,
-                                                "hasReplies": false,
-                                                "isLiked": true
-                                            }
-                                        ]
+            "subtitle": "The Subheadline (Exact Match)",
+            "author": "Female Name (e.g. Sarah Jenkins)",
+            "reviewer": "Medical Doctor Name (e.g. Dr. A. Peterson, MD)",
+            "date": "Updated: 2 hours ago",
+            "content": "<p>First paragraph...</p>...",
+            "keyTakeaways": [
+                { "title": "Short Title", "content": "One sentence summary" }
+            ],
+            "comments": [
+                {
+                    "id": "c1",
+                    "author": "Name",
+                    "avatar": "https://picsum.photos/seed/c1/100",
+                    "content": "Comment text",
+                    "time": "2h",
+                    "likes": 45,
+                    "hasReplies": false,
+                    "isLiked": true
+                }
+            ]
         }
 
             RAW TEXT:
@@ -140,32 +107,42 @@ export async function POST(request: Request) {
         }
 
         const newArticle = {
-            id: slug,
             slug: slug,
-            ...generatedData,
+            title: generatedData.title,
+            subtitle: generatedData.subtitle,
+            author: generatedData.author,
+            reviewer: generatedData.reviewer,
+            date: generatedData.date,
+            content: generatedData.content,
+            key_takeaways: generatedData.keyTakeaways,
+            comments: generatedData.comments,
             image: "https://picsum.photos/seed/" + slug + "/800/600", // Placeholder
-            ctaText: "Check Availability »",
-            ctaTitle: "Curious about the science?",
-            ctaDescription: "Secure, verified link to official research.",
-            pixelId: pixelId || "",
-            ctaUrl: ctaUrl || ""
+            cta_text: "Check Availability »",
+            cta_title: "Curious about the science?",
+            cta_description: "Secure, verified link to official research.",
+            pixel_id: pixelId || "",
+            cta_url: ctaUrl || "",
+            updated_at: new Date().toISOString()
         };
 
-        // Get existing articles
-        const articles = await getArticles();
+        // Check if slug exists
+        const { data: existing } = await supabase
+            .from('articles')
+            .select('slug')
+            .eq('slug', slug)
+            .single();
 
-        // Check if slug exists and append random string if so (only if auto-generated or collision)
-        let finalSlug = slug;
-        if (articles.some((a: any) => a.slug === finalSlug)) {
-            finalSlug = `${slug}-${Math.random().toString(36).substring(7)}`;
-            newArticle.slug = finalSlug;
-            newArticle.id = finalSlug;
+        if (existing) {
+            newArticle.slug = `${slug}-${Math.random().toString(36).substring(7)}`;
         }
 
-        articles.push(newArticle);
-        await saveArticles(articles);
+        const { error } = await supabase
+            .from('articles')
+            .insert(newArticle);
 
-        return NextResponse.json({ success: true, slug: finalSlug });
+        if (error) throw error;
+
+        return NextResponse.json({ success: true, slug: newArticle.slug });
 
     } catch (error) {
         console.error('Error generating article:', error);
