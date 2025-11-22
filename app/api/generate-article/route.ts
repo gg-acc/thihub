@@ -45,12 +45,13 @@ export async function POST(request: Request) {
         1. ** Headline **: Identify the main headline(usually the first line).Extract it exactly.
             2. ** Subheadline **: Identify the subheadline(usually the second line).Extract it exactly.
             3. ** Body Content **:
-        -   Take the rest of the text and format it as clean, semantic HTML.
-                - Use<h2> for major section breaks.
-                - Use<h3> for sub - sections.
-                - Use<blockquote> for testimonials, key quotes, or "callout" boxes.
-                - Use < ul > or<ol> for lists.
-                - Use < strong > and<em> for emphasis.
+                -   Take the rest of the text and format it as clean, semantic HTML.
+                -   **CRITICAL**: Do NOT add any new text, introductory phrases, or concluding remarks.
+                -   **CRITICAL**: Do NOT invent new headlines or subheadlines if they are not in the source text.
+                -   If a line looks like a subheadline (short, bold, or separate line), use <h2> or <h3>.
+                -   Use <blockquote> for testimonials, key quotes, or "callout" boxes.
+                -   Use <ul> or <ol> for lists.
+                -   Use <strong> and <em> for emphasis.
                 -   ** DO NOT ** include the title or subtitle in the "content" field.
                 -   ** DO NOT CHANGE A SINGLE WORD OF THE BODY TEXT.**
             4. ** Key Takeaways **: Extract 3 distinct, punchy "Key Takeaways" from the text. (You may summarize here, but keep it close to the text).

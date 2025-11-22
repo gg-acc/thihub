@@ -63,7 +63,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 <KeyTakeaways items={article.keyTakeaways} />
 
                 {/* Article Content */}
-                <article className="prose prose-lg max-w-none text-gray-800 font-serif leading-loose">
+                <article className="prose prose-lg max-w-none text-gray-800 font-serif leading-loose prose-h2:mb-4 prose-h3:mb-3 prose-p:mt-2 prose-img:my-8">
                     {/* Removed duplicate hero image */}
                     <div dangerouslySetInnerHTML={{ __html: article.content }} />
                 </article>
