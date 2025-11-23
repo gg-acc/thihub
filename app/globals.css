@@ -29,7 +29,7 @@ h6 {
 
 /* Article Content Styling */
 .prose p {
-  margin-bottom: 1.75em;
+  margin-bottom: 1.5em;
   font-size: 19px;
   line-height: 1.75;
   color: #292929;
@@ -41,13 +41,13 @@ h6 {
   padding-left: 0;
 }
 
-.prose ul > li {
+.prose ul>li {
   position: relative;
   padding-left: 1.75em;
   margin-bottom: 0.75em;
 }
 
-.prose ul > li::before {
+.prose ul>li::before {
   content: "";
   position: absolute;
   left: 0;
@@ -77,8 +77,8 @@ h6 {
   font-family: var(--font-serif);
   font-weight: 700;
   color: #111827;
-  margin-top: 2.5em;
-  margin-bottom: 1em;
+  margin-top: 0;
+  margin-bottom: 0;
   font-size: 24px;
   letter-spacing: -0.01em;
   line-height: 1.4;
