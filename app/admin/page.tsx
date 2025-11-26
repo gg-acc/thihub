@@ -302,7 +302,7 @@ export default function AdminDashboard() {
             {/* Articles Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Article List */}
-                <Card className="lg:col-span-1 overflow-hidden">
+                <Card className="lg:col-span-1">
                     <CardHeader className="pb-3">
                         <CardTitle>Articles</CardTitle>
                         <CardDescription>Select an article to edit</CardDescription>
@@ -329,21 +329,21 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                         <ScrollArea className="h-[450px]">
-                            <div className="px-4 pb-4 space-y-2">
+                            <div className="px-4 pb-4 space-y-1">
                                 {filteredArticles.map(article => (
                                     <div
                                         key={article.slug}
                                         onClick={() => setSelectedArticle(article)}
-                                        className={`p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${selectedArticle?.slug === article.slug
+                                        className={`p-3 rounded-lg cursor-pointer transition-all border ${selectedArticle?.slug === article.slug
                                             ? 'bg-accent border-primary/20'
                                             : 'hover:bg-accent/50 border-transparent'
                                             }`}
                                     >
-                                        <div className="font-medium text-sm truncate">{article.title}</div>
-                                        <div className="flex items-center gap-2 mt-1 min-w-0">
-                                            <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">/{article.slug}</span>
-                                            <Badge variant="secondary" className="text-[10px] flex-shrink-0">
-                                                {article.comments?.length || 0} comments
+                                        <p className="font-medium text-sm line-clamp-2 leading-snug">{article.title}</p>
+                                        <div className="flex items-center justify-between gap-2 mt-2">
+                                            <span className="text-xs text-muted-foreground truncate">/{article.slug}</span>
+                                            <Badge variant="secondary" className="text-[10px] shrink-0">
+                                                {article.comments?.length || 0}
                                             </Badge>
                                         </div>
                                     </div>
@@ -372,30 +372,26 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Article Editor */}
-                <Card className="lg:col-span-2 overflow-hidden">
+                <Card className="lg:col-span-2">
                     {selectedArticle ? (
                         <>
-                            <CardHeader>
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0 flex-1">
-                                        <CardTitle className="truncate text-base">{selectedArticle.title}</CardTitle>
-                                        <CardDescription className="truncate">/{selectedArticle.slug}</CardDescription>
-                                    </div>
-                                    <div className="flex gap-2 flex-shrink-0">
-                                        <Button variant="outline" size="sm" asChild>
-                                            <Link href={`/articles/${selectedArticle.slug}`} target="_blank">
-                                                <ExternalLink className="mr-2 h-4 w-4" />
-                                                View
-                                            </Link>
-                                        </Button>
-                                        <Button size="sm" asChild>
-                                            <Link href={`/admin/articles/${selectedArticle.slug}`}>
-                                                <Pencil className="mr-2 h-4 w-4" />
-                                                Edit
-                                            </Link>
-                                        </Button>
-                                    </div>
+                            <CardHeader className="pb-4">
+                                <div className="flex gap-2 mb-3">
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href={`/articles/${selectedArticle.slug}`} target="_blank">
+                                            <ExternalLink className="mr-2 h-4 w-4" />
+                                            View
+                                        </Link>
+                                    </Button>
+                                    <Button size="sm" asChild>
+                                        <Link href={`/admin/articles/${selectedArticle.slug}`}>
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Edit
+                                        </Link>
+                                    </Button>
                                 </div>
+                                <CardTitle className="text-base leading-tight">{selectedArticle.title}</CardTitle>
+                                <CardDescription>/{selectedArticle.slug}</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {/* Tracking Config */}
