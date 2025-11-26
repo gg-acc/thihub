@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import GenerationOverlay from '@/components/admin/GenerationOverlay';
 
 export default function CreateArticlePage() {
     const router = useRouter();
@@ -10,6 +11,8 @@ export default function CreateArticlePage() {
     const [slug, setSlug] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [generationStage, setGenerationStage] = useState(0);
+    const stageTimersRef = useRef<NodeJS.Timeout[]>([]);
 
     // Pixel State
     const [pixels, setPixels] = useState<string[]>([]);
@@ -74,6 +77,20 @@ export default function CreateArticlePage() {
 
         setLoading(true);
         setError('');
+        setGenerationStage(0);
+
+        // Clear any existing timers
+        stageTimersRef.current.forEach(timer => clearTimeout(timer));
+        stageTimersRef.current = [];
+
+        // Progress through stages while API call is processing
+        const stageDurations = [3000, 4000, 4000]; // Time for each stage
+        stageDurations.forEach((duration, index) => {
+            const timer = setTimeout(() => {
+                setGenerationStage(index + 1);
+            }, stageDurations.slice(0, index + 1).reduce((a, b) => a + b, 0));
+            stageTimersRef.current.push(timer);
+        });
 
         try {
             const res = await fetch('/api/generate-article', {
@@ -100,14 +117,22 @@ export default function CreateArticlePage() {
             router.push(`/admin/articles/${data.slug}`);
 
         } catch (err: any) {
+            // Clear stage timers on error
+            stageTimersRef.current.forEach(timer => clearTimeout(timer));
+            stageTimersRef.current = [];
             setError(err.message);
             setLoading(false);
+            setGenerationStage(0);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <>
+            {/* Cinematic Loading Overlay */}
+            {loading && <GenerationOverlay stage={generationStage} />}
+
+            <div className="min-h-screen bg-gray-50 font-sans">
+                <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/admin" className="text-gray-500 hover:text-gray-900 transition-colors">
@@ -282,5 +307,6 @@ export default function CreateArticlePage() {
                 </div>
             </main>
         </div>
+        </>
     );
 }
