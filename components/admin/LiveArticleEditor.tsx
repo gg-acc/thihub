@@ -259,8 +259,8 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
                         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
                     </div>
 
-                    {/* Content Overlay */}
-                    <div className="relative z-10 w-full max-w-3xl mx-auto px-5 sm:px-6">
+                    {/* Content Overlay - pt-24 ensures tags don't overlap with fixed header on mobile */}
+                    <div className="relative z-10 w-full max-w-3xl mx-auto px-5 sm:px-6 pt-24 sm:pt-20">
                         <div className="flex flex-wrap items-center gap-3 mb-6">
                             <span className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm shadow-sm">
                                 Investigative Report
