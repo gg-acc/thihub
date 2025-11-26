@@ -245,12 +245,12 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="min-w-0">
                     <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
                     <p className="text-muted-foreground">Manage your articles and settings</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                     <Button variant="outline" onClick={() => setIsConfigDialogOpen(true)}>
                         <Settings className="mr-2 h-4 w-4" />
                         Settings
@@ -302,7 +302,7 @@ export default function AdminDashboard() {
             {/* Articles Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Article List */}
-                <Card className="lg:col-span-1">
+                <Card className="lg:col-span-1 overflow-hidden">
                     <CardHeader className="pb-3">
                         <CardTitle>Articles</CardTitle>
                         <CardDescription>Select an article to edit</CardDescription>
@@ -334,15 +334,15 @@ export default function AdminDashboard() {
                                     <div
                                         key={article.slug}
                                         onClick={() => setSelectedArticle(article)}
-                                        className={`p-3 rounded-lg cursor-pointer transition-all border ${selectedArticle?.slug === article.slug
+                                        className={`p-3 rounded-lg cursor-pointer transition-all border overflow-hidden ${selectedArticle?.slug === article.slug
                                             ? 'bg-accent border-primary/20'
                                             : 'hover:bg-accent/50 border-transparent'
                                             }`}
                                     >
                                         <div className="font-medium text-sm truncate">{article.title}</div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-xs text-muted-foreground">/{article.slug}</span>
-                                            <Badge variant="secondary" className="text-[10px]">
+                                        <div className="flex items-center gap-2 mt-1 min-w-0">
+                                            <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">/{article.slug}</span>
+                                            <Badge variant="secondary" className="text-[10px] flex-shrink-0">
                                                 {article.comments?.length || 0} comments
                                             </Badge>
                                         </div>
@@ -372,16 +372,16 @@ export default function AdminDashboard() {
                 </Card>
 
                 {/* Article Editor */}
-                <Card className="lg:col-span-2">
+                <Card className="lg:col-span-2 overflow-hidden">
                     {selectedArticle ? (
                         <>
                             <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <CardTitle className="truncate">{selectedArticle.title}</CardTitle>
-                                        <CardDescription>/{selectedArticle.slug}</CardDescription>
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0 flex-1">
+                                        <CardTitle className="truncate text-base">{selectedArticle.title}</CardTitle>
+                                        <CardDescription className="truncate">/{selectedArticle.slug}</CardDescription>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 flex-shrink-0">
                                         <Button variant="outline" size="sm" asChild>
                                             <Link href={`/articles/${selectedArticle.slug}`} target="_blank">
                                                 <ExternalLink className="mr-2 h-4 w-4" />
@@ -404,7 +404,7 @@ export default function AdminDashboard() {
                                         <BarChart3 className="h-4 w-4" />
                                         Tracking Configuration
                                     </h3>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label className="text-xs">Pixel ID Override</Label>
                                             <Input
