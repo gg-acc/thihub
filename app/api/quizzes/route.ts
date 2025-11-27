@@ -65,7 +65,7 @@ export async function POST(request: Request) {
                     primaryColor: '#0F4C81',
                     backgroundColor: '#ffffff',
                     showProgressBar: true,
-                    allowBack: false
+                    allowBack: true
                 },
                 status: 'draft'
             })

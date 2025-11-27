@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use, useCallback } from 'react';
+import React, { useState, useEffect, use, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Loader2, ChevronLeft, Check } from 'lucide-react';
@@ -10,6 +10,22 @@ interface SlideOption {
     text: string;
     imageUrl?: string;
     nextSlide?: string | 'next' | 'end';
+    category?: string;
+}
+
+interface ResultCategory {
+    id: string;
+    name: string;
+    headline: string;
+    body: string;
+    imageUrl?: string;
+}
+
+interface ContentBlock {
+    id: string;
+    type: 'heading' | 'paragraph' | 'image' | 'quote';
+    content: string;
+    author?: string;
 }
 
 interface SlideContent {
@@ -28,6 +44,8 @@ interface SlideContent {
     ctaText?: string;
     ctaUrl?: string;
     guaranteeText?: string;
+    blocks?: ContentBlock[];
+    resultCategories?: ResultCategory[];
 }
 
 interface Slide {
@@ -205,15 +223,38 @@ export default function QuizPlayer({ params }: { params: Promise<{ slug: string 
     const goToPrevSlide = useCallback(() => {
         if (!quiz?.settings.allowBack || currentSlideIndex === 0) return;
         
+        // Find the previous slide that was actually answered (skip conditional slides)
+        const lastAnswer = answers[answers.length - 1];
+        const prevSlideIndex = lastAnswer 
+            ? quiz.slides.findIndex(s => s.id === lastAnswer.slideId)
+            : currentSlideIndex - 1;
+        
         setIsTransitioning(true);
         setTimeout(() => {
-            setCurrentSlideIndex(currentSlideIndex - 1);
-            // Remove the last answer
-            setAnswers(answers.slice(0, -1));
-            setSelectedOptions([]);
+            // Go back to the previous slide
+            setCurrentSlideIndex(prevSlideIndex >= 0 ? prevSlideIndex : currentSlideIndex - 1);
+            // Remove the last answer but restore selected options for multi-select
+            const newAnswers = answers.slice(0, -1);
+            setAnswers(newAnswers);
+            
+            // Restore selected options if the previous slide was multi-select
+            const prevSlide = quiz.slides[prevSlideIndex >= 0 ? prevSlideIndex : currentSlideIndex - 1];
+            if (prevSlide?.type === 'multi-select' && lastAnswer) {
+                setSelectedOptions(lastAnswer.selectedOptions);
+            } else {
+                setSelectedOptions([]);
+            }
+            
             setIsTransitioning(false);
+            
+            // Update localStorage
+            localStorage.setItem(`quiz_session_${slug}`, JSON.stringify({
+                sessionId,
+                answers: newAnswers,
+                currentSlide: prevSlideIndex >= 0 ? prevSlideIndex : currentSlideIndex - 1,
+            }));
         }, 300);
-    }, [quiz, currentSlideIndex, answers]);
+    }, [quiz, currentSlideIndex, answers, sessionId, slug]);
 
     const handleOptionSelect = (optionId: string) => {
         const currentSlide = quiz?.slides[currentSlideIndex];
@@ -337,6 +378,7 @@ export default function QuizPlayer({ params }: { params: Promise<{ slug: string 
                 <div className="w-full max-w-md mx-auto">
                     <SlideRenderer
                         slide={currentSlide}
+                        quiz={quiz}
                         primaryColor={primaryColor}
                         selectedOptions={selectedOptions}
                         onOptionSelect={handleOptionSelect}
@@ -353,6 +395,7 @@ export default function QuizPlayer({ params }: { params: Promise<{ slug: string 
 // Slide Renderer Component
 function SlideRenderer({
     slide,
+    quiz,
     primaryColor,
     selectedOptions,
     onOptionSelect,
@@ -361,6 +404,7 @@ function SlideRenderer({
     answers,
 }: {
     slide: Slide;
+    quiz: Quiz;
     primaryColor: string;
     selectedOptions: string[];
     onOptionSelect: (id: string) => void;
@@ -369,6 +413,43 @@ function SlideRenderer({
     answers: Answer[];
 }) {
     const content = slide.content;
+    
+    // Calculate winning category for results slides
+    const winningCategory = useMemo(() => {
+        if (slide.type !== 'results' || !content.resultCategories?.length) return null;
+        
+        // Count categories from all answers
+        const categoryCount: Record<string, number> = {};
+        
+        answers.forEach(answer => {
+            // Find the slide for this answer
+            const answerSlide = quiz.slides.find(s => s.id === answer.slideId);
+            if (!answerSlide?.content.options) return;
+            
+            // Count selected options' categories
+            answer.selectedOptions.forEach(optId => {
+                const option = answerSlide.content.options?.find(o => o.id === optId);
+                if (option?.category) {
+                    categoryCount[option.category] = (categoryCount[option.category] || 0) + 1;
+                }
+            });
+        });
+        
+        // Find the category with the highest count
+        let maxCount = 0;
+        let winningCat: ResultCategory | null = null;
+        
+        content.resultCategories.forEach(cat => {
+            const count = categoryCount[cat.name] || 0;
+            if (count > maxCount) {
+                maxCount = count;
+                winningCat = cat;
+            }
+        });
+        
+        // If no category has any selections, return the first one as default
+        return winningCat || content.resultCategories[0];
+    }, [slide.type, content.resultCategories, answers, quiz.slides]);
 
     return (
         <div className="space-y-6">
@@ -379,28 +460,83 @@ function SlideRenderer({
                 </div>
             )}
 
-            {/* Headline */}
-            {content.headline && (
+            {/* Headline - Dynamic for results */}
+            {(slide.type === 'results' && winningCategory ? (
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                    {winningCategory.headline}
+                </h1>
+            ) : content.headline && (
                 <h1 className="text-2xl font-bold text-gray-900 leading-tight">
                     {content.headline}
                 </h1>
-            )}
+            ))}
 
             {/* Subheadline */}
             {content.subheadline && (
                 <p className="text-gray-600">{content.subheadline}</p>
             )}
 
-            {/* Body Text */}
-            {content.body && (
+            {/* Dynamic Results Body */}
+            {slide.type === 'results' && winningCategory && (
+                <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {winningCategory.body}
+                </div>
+            )}
+
+            {/* Body Text (legacy, for non-results slides) */}
+            {content.body && !content.blocks && slide.type !== 'results' && (
                 <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {content.body}
                 </div>
             )}
 
+            {/* Content Blocks */}
+            {content.blocks && content.blocks.length > 0 && (
+                <div className="space-y-4">
+                    {content.blocks.map((block) => (
+                        <div key={block.id}>
+                            {block.type === 'heading' && (
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {block.content}
+                                </h2>
+                            )}
+                            {block.type === 'paragraph' && (
+                                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                    {block.content}
+                                </p>
+                            )}
+                            {block.type === 'image' && block.content && (
+                                <img 
+                                    src={block.content} 
+                                    alt="" 
+                                    className="w-full rounded-xl shadow-md" 
+                                />
+                            )}
+                            {block.type === 'quote' && (
+                                <div 
+                                    className="border-l-4 pl-4 py-2"
+                                    style={{ borderColor: primaryColor }}
+                                >
+                                    <p className="text-gray-700 italic">{block.content}</p>
+                                    {block.author && (
+                                        <p className="text-sm text-gray-500 mt-1">— {block.author}</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Options - Text Choice / Image Choice / Multi-Select */}
             {content.options && (
-                <div className="space-y-3">
+                <div className={cn(
+                    slide.type === 'image-choice' 
+                        ? content.options.length === 4 
+                            ? "grid grid-cols-2 gap-3" 
+                            : "grid grid-cols-3 gap-2"
+                        : "space-y-3"
+                )}>
                     {content.options.map((option) => {
                         const isSelected = selectedOptions.includes(option.id);
                         return (
@@ -408,7 +544,8 @@ function SlideRenderer({
                                 key={option.id}
                                 onClick={() => onOptionSelect(option.id)}
                                 className={cn(
-                                    'w-full p-4 text-left border-2 rounded-2xl transition-all duration-200',
+                                    'text-left border-2 rounded-2xl transition-all duration-200',
+                                    slide.type === 'image-choice' ? 'p-2' : 'w-full p-4',
                                     isSelected
                                         ? 'shadow-md scale-[1.02]'
                                         : 'hover:border-gray-300 hover:shadow-sm'
@@ -418,15 +555,31 @@ function SlideRenderer({
                                     backgroundColor: isSelected ? `${primaryColor}08` : 'white',
                                 }}
                             >
-                                {slide.type === 'image-choice' && option.imageUrl && (
-                                    <img 
-                                        src={option.imageUrl} 
-                                        alt="" 
-                                        className="w-full h-24 object-cover rounded-xl mb-3" 
-                                    />
+                                {slide.type === 'image-choice' && (
+                                    <div className="aspect-square w-full rounded-xl overflow-hidden mb-2 bg-gray-100">
+                                        {option.imageUrl ? (
+                                            <img 
+                                                src={option.imageUrl} 
+                                                alt="" 
+                                                className="w-full h-full object-cover" 
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <span className="text-gray-400 text-xs">No image</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
-                                <div className="flex items-center justify-between">
-                                    <span className="font-medium text-gray-900">{option.text}</span>
+                                <div className={cn(
+                                    "flex items-center",
+                                    slide.type === 'image-choice' ? "justify-center" : "justify-between"
+                                )}>
+                                    <span className={cn(
+                                        "font-medium text-gray-900",
+                                        slide.type === 'image-choice' && "text-sm text-center"
+                                    )}>
+                                        {option.text}
+                                    </span>
                                     {slide.type === 'multi-select' && (
                                         <div 
                                             className={cn(
