@@ -171,13 +171,42 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
             }
         };
 
+        // Initial resize
         resize();
-        // Run again after fonts load
-        const timer = setTimeout(resize, 100);
-        document.fonts?.ready.then(resize);
+        
+        // Multiple resize attempts to catch font loading
+        const timers = [
+            setTimeout(resize, 50),
+            setTimeout(resize, 150),
+            setTimeout(resize, 300),
+            setTimeout(resize, 500),
+        ];
+        
+        // Also wait for fonts
+        document.fonts?.ready.then(() => {
+            resize();
+            setTimeout(resize, 50);
+        });
 
-        return () => clearTimeout(timer);
+        return () => timers.forEach(clearTimeout);
     }, [article.title, article.subtitle]);
+    
+    // Also resize on window load (catches late font loading)
+    useEffect(() => {
+        const resize = () => {
+            if (titleRef.current) {
+                titleRef.current.style.height = 'auto';
+                titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
+            }
+            if (subtitleRef.current) {
+                subtitleRef.current.style.height = 'auto';
+                subtitleRef.current.style.height = subtitleRef.current.scrollHeight + 'px';
+            }
+        };
+        
+        window.addEventListener('load', resize);
+        return () => window.removeEventListener('load', resize);
+    }, []);
 
     // Send article updates to iframe
     useEffect(() => {
