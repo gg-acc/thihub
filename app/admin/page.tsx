@@ -13,15 +13,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import {
     Search,
@@ -34,6 +60,8 @@ import {
     Plus,
     Save,
     Loader2,
+    MoreHorizontal,
+    X,
 } from 'lucide-react';
 
 interface ArticleConfig {
@@ -49,6 +77,7 @@ interface Article {
     ctaTitle?: string;
     ctaDescription?: string;
     comments?: CommentData[];
+    created_at?: string;
 }
 
 interface Config {
@@ -62,10 +91,15 @@ export default function AdminDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [config, setConfig] = useState<Config | null>(null);
     const [articles, setArticles] = useState<Article[]>([]);
-    const [selectedArticle, setSelectedArticle] = useState<string | null>(null);
+    const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [savingConfig, setSavingConfig] = useState(false);
     const [savingArticle, setSavingArticle] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -134,31 +168,42 @@ export default function AdminDashboard() {
                 body: JSON.stringify(config),
             });
             if (res.ok) {
-                toast.success('Configuration saved successfully');
+                toast.success('Settings saved');
+                setSettingsOpen(false);
             } else {
-                toast.error('Failed to save configuration');
+                toast.error('Failed to save settings');
             }
         } catch (e) {
-            toast.error('Failed to save configuration');
+            toast.error('Failed to save settings');
         } finally {
             setSavingConfig(false);
         }
     };
 
-    const handleSaveComments = async (slug: string, comments: CommentData[], ctaText?: string, ctaTitle?: string, ctaDescription?: string) => {
+    const handleSaveArticle = async () => {
+        if (!selectedArticle) return;
         setSavingArticle(true);
         try {
             const res = await fetch('/api/articles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slug, comments, ctaText, ctaTitle, ctaDescription }),
+                body: JSON.stringify({
+                    slug: selectedArticle.slug,
+                    comments: selectedArticle.comments,
+                    ctaText: selectedArticle.ctaText,
+                    ctaTitle: selectedArticle.ctaTitle,
+                    ctaDescription: selectedArticle.ctaDescription
+                }),
             });
 
             if (res.ok) {
-                toast.success('Article saved successfully');
-                setArticles(articles.map(a => a.slug === slug ? { ...a, comments, ctaText, ctaTitle, ctaDescription } : a));
+                toast.success('Article saved');
+                setArticles(articles.map(a => 
+                    a.slug === selectedArticle.slug ? selectedArticle : a
+                ));
             } else {
-                toast.error('Failed to save article');
+                const errorData = await res.json();
+                toast.error(errorData.error || 'Failed to save article');
             }
         } catch (e) {
             toast.error('Failed to save article');
@@ -167,25 +212,32 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleDeleteArticle = async (slug: string) => {
-        if (!window.confirm(`Are you sure you want to delete "${slug}"? This cannot be undone.`)) {
-            return;
-        }
-
+    const handleDeleteArticle = async () => {
+        if (!articleToDelete) return;
+        setDeleting(true);
+        
         try {
-            const res = await fetch(`/api/articles?slug=${slug}`, { method: 'DELETE' });
+            const res = await fetch(`/api/articles?slug=${articleToDelete}`, { 
+                method: 'DELETE' 
+            });
 
             if (res.ok) {
                 toast.success('Article deleted');
-                setArticles(articles.filter(a => a.slug !== slug));
-                if (selectedArticle === slug) {
+                setArticles(articles.filter(a => a.slug !== articleToDelete));
+                if (selectedArticle?.slug === articleToDelete) {
                     setSelectedArticle(null);
+                    setSheetOpen(false);
                 }
             } else {
-                toast.error('Failed to delete article');
+                const errorData = await res.json();
+                toast.error(errorData.error || 'Failed to delete article');
             }
         } catch (e) {
             toast.error('Failed to delete article');
+        } finally {
+            setDeleting(false);
+            setDeleteDialogOpen(false);
+            setArticleToDelete(null);
         }
     };
 
@@ -234,44 +286,38 @@ export default function AdminDashboard() {
         );
     }, [articles, searchQuery]);
 
-    const selectedArticleData = articles.find(a => a.slug === selectedArticle);
+    const openArticlePanel = (article: Article) => {
+        setSelectedArticle({ ...article });
+        setSheetOpen(true);
+    };
+
+    const confirmDelete = (slug: string) => {
+        setArticleToDelete(slug);
+        setDeleteDialogOpen(true);
+    };
 
     // Loading state
     if (isLoading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 p-6">
                 <div className="flex items-center justify-between">
                     <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-10 w-32" />
+                    <div className="flex gap-2">
+                        <Skeleton className="h-10 w-10" />
+                        <Skeleton className="h-10 w-32" />
+                    </div>
                 </div>
-                <Card>
-                    <CardHeader>
-                        <Skeleton className="h-6 w-32" />
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <Skeleton className="h-10 w-full" />
-                            <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-64" />
+                <div className="border rounded-lg">
+                    <div className="p-4 border-b">
+                        <Skeleton className="h-4 w-full" />
+                    </div>
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="p-4 border-b">
+                            <Skeleton className="h-4 w-full" />
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <Skeleton className="h-6 w-40" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-3 gap-6">
-                            <div className="space-y-2">
-                                {[...Array(4)].map((_, i) => (
-                                    <Skeleton key={i} className="h-16 w-full" />
-                                ))}
-                            </div>
-                            <div className="col-span-2">
-                                <Skeleton className="h-64 w-full" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -279,332 +325,369 @@ export default function AdminDashboard() {
     if (!isAuthenticated) return null;
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold text-zinc-900">Admin Dashboard</h1>
-                    <p className="text-sm text-zinc-500 mt-1">Manage articles, tracking, and content</p>
-                </div>
-                <Button asChild className="bg-zinc-900 hover:bg-zinc-800">
-                    <Link href="/admin/create">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create New Article
-                    </Link>
-                </Button>
-            </div>
-
-            {/* Global Defaults Card */}
-            <Card className="border-zinc-200">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
-                        <Settings className="h-5 w-5 text-zinc-500" />
-                        Global Defaults
-                    </CardTitle>
-                    <CardDescription className="text-zinc-500">
-                        Default tracking and CTA settings for all articles
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="defaultPixelId" className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                Default Pixel ID
-                            </Label>
-                            <Input
-                                id="defaultPixelId"
-                                value={config?.defaultPixelId || ''}
-                                onChange={(e) => updateGlobalConfig('defaultPixelId', e.target.value)}
-                                placeholder="Enter Facebook Pixel ID"
-                                className="border-zinc-200 focus:border-zinc-400 focus:ring-zinc-400"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="defaultCtaUrl" className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                Default CTA URL
-                            </Label>
-                            <Input
-                                id="defaultCtaUrl"
-                                value={config?.defaultCtaUrl || ''}
-                                onChange={(e) => updateGlobalConfig('defaultCtaUrl', e.target.value)}
-                                placeholder="https://..."
-                                className="border-zinc-200 focus:border-zinc-400 focus:ring-zinc-400"
-                            />
-                        </div>
+        <>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-semibold text-zinc-900">Articles</h1>
+                        <p className="text-sm text-zinc-500 mt-1">{articles.length} total articles</p>
                     </div>
-                    <div className="flex justify-end">
-                        <Button 
-                            onClick={handleSaveConfig} 
-                            disabled={savingConfig}
-                            className="bg-zinc-900 hover:bg-zinc-800"
-                        >
-                            {savingConfig ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="h-4 w-4 mr-2" />
-                                    Save Global Config
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Article Management Card */}
-            <Card className="border-zinc-200">
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <CardTitle className="text-lg font-semibold text-zinc-900 flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-zinc-500" />
-                                Article Management
-                            </CardTitle>
-                            <CardDescription className="text-zinc-500">
-                                {articles.length} articles total
-                            </CardDescription>
-                        </div>
-                        {/* Search Input */}
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                            <Input
-                                placeholder="Search articles..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 border-zinc-200 focus:border-zinc-400 focus:ring-zinc-400"
-                            />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[500px]">
-                        {/* Article List Sidebar */}
-                        <div className="border-r border-zinc-100 bg-zinc-50/50">
-                            <div className="p-3 border-b border-zinc-100">
-                                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                    Articles
-                                </span>
-                            </div>
-                            <ScrollArea className="h-[450px]">
-                                <div className="p-2 space-y-1">
-                                    {filteredArticles.length === 0 ? (
-                                        <div className="p-4 text-center text-sm text-zinc-400">
-                                            {searchQuery ? 'No articles match your search' : 'No articles yet'}
-                                        </div>
-                                    ) : (
-                                        filteredArticles.map(article => (
-                                            <button
-                                                key={article.slug}
-                                                onClick={() => setSelectedArticle(article.slug)}
-                                                className={cn(
-                                                    'w-full text-left p-3 rounded-lg transition-all',
-                                                    selectedArticle === article.slug
-                                                        ? 'bg-white shadow-sm border border-zinc-200 ring-1 ring-zinc-900/5'
-                                                        : 'hover:bg-white hover:shadow-sm border border-transparent'
-                                                )}
-                                            >
-                                                <div className="font-medium text-zinc-900 text-sm line-clamp-2 mb-1">
-                                                    {article.title}
-                                                </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-xs text-zinc-500 truncate flex-1 min-w-0">
-                                                        /{article.slug}
-                                                    </span>
-                                                    <Badge variant="secondary" className="text-[10px] shrink-0 bg-zinc-100 text-zinc-600 hover:bg-zinc-100">
-                                                        {article.comments?.length || 0} comments
-                                                    </Badge>
-                                                </div>
-                                            </button>
-                                        ))
-                                    )}
-                                </div>
-                            </ScrollArea>
-                        </div>
-
-                        {/* Editor Area */}
-                        <div className="lg:col-span-2 p-6 bg-white">
-                            {selectedArticle && selectedArticleData ? (
-                                <div className="space-y-6">
-                                    {/* Action Buttons */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <Button variant="outline" size="sm" asChild className="border-zinc-200">
-                                            <a href={`/articles/${selectedArticle}`} target="_blank">
-                                                <ExternalLink className="h-4 w-4 mr-2" />
-                                                View Live
-                                            </a>
-                                        </Button>
-                                        <Button size="sm" asChild className="bg-zinc-900 hover:bg-zinc-800">
-                                            <Link href={`/admin/articles/${selectedArticle}`}>
-                                                <Pencil className="h-4 w-4 mr-2" />
-                                                Open Visual Editor
-                                            </Link>
-                                        </Button>
+                    <div className="flex items-center gap-2">
+                        {/* Settings Button */}
+                        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="icon" className="border-zinc-200">
+                                    <Settings className="h-4 w-4" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle>Global Settings</DialogTitle>
+                                    <DialogDescription>
+                                        Default tracking and CTA settings for all articles
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="defaultPixelId">Default Pixel ID</Label>
+                                        <Input
+                                            id="defaultPixelId"
+                                            value={config?.defaultPixelId || ''}
+                                            onChange={(e) => updateGlobalConfig('defaultPixelId', e.target.value)}
+                                            placeholder="Enter Facebook Pixel ID"
+                                        />
                                     </div>
-
-                                    {/* Tracking & CTA Configuration */}
-                                    <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-100">
-                                        <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
-                                            <Settings className="h-4 w-4 text-zinc-500" />
-                                            Tracking & CTA Configuration
-                                        </h3>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-zinc-500">Pixel ID Override</Label>
-                                                <Input
-                                                    placeholder={`Default: ${config?.defaultPixelId || 'Not set'}`}
-                                                    value={getArticleConfigValue(selectedArticle, 'pixelId')}
-                                                    onChange={(e) => updateArticleConfig(selectedArticle, 'pixelId', e.target.value)}
-                                                    className="text-sm border-zinc-200"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-zinc-500">CTA URL Override</Label>
-                                                <Input
-                                                    placeholder={`Default: ${config?.defaultCtaUrl || 'Not set'}`}
-                                                    value={getArticleConfigValue(selectedArticle, 'ctaUrl')}
-                                                    onChange={(e) => updateArticleConfig(selectedArticle, 'ctaUrl', e.target.value)}
-                                                    className="text-sm border-zinc-200"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex justify-end">
-                                            <Button 
-                                                variant="link" 
-                                                size="sm" 
-                                                onClick={handleSaveConfig}
-                                                className="text-zinc-600 hover:text-zinc-900 p-0 h-auto"
-                                            >
-                                                Save Configuration
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {/* Content Customization */}
-                                    <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-100">
-                                        <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-zinc-500" />
-                                            Content Customization
-                                        </h3>
-                                        <div className="space-y-3">
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-zinc-500">CTA Title</Label>
-                                                <Input
-                                                    placeholder="e.g. Curious about the science?"
-                                                    value={selectedArticleData.ctaTitle || ''}
-                                                    onChange={(e) => {
-                                                        setArticles(articles.map(a =>
-                                                            a.slug === selectedArticle ? { ...a, ctaTitle: e.target.value } : a
-                                                        ));
-                                                    }}
-                                                    className="text-sm border-zinc-200"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-zinc-500">CTA Button Text</Label>
-                                                <Input
-                                                    placeholder="e.g. Check Availability »"
-                                                    value={selectedArticleData.ctaText || ''}
-                                                    onChange={(e) => {
-                                                        setArticles(articles.map(a =>
-                                                            a.slug === selectedArticle ? { ...a, ctaText: e.target.value } : a
-                                                        ));
-                                                    }}
-                                                    className="text-sm border-zinc-200"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <Label className="text-xs text-zinc-500">CTA Subtext</Label>
-                                                <Input
-                                                    placeholder="e.g. Secure, verified link to official website."
-                                                    value={selectedArticleData.ctaDescription || ''}
-                                                    onChange={(e) => {
-                                                        setArticles(articles.map(a =>
-                                                            a.slug === selectedArticle ? { ...a, ctaDescription: e.target.value } : a
-                                                        ));
-                                                    }}
-                                                    className="text-sm border-zinc-200"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="mt-3 flex justify-end">
-                                            <Button 
-                                                onClick={() => handleSaveComments(
-                                                    selectedArticle,
-                                                    selectedArticleData.comments || [],
-                                                    selectedArticleData.ctaText,
-                                                    selectedArticleData.ctaTitle,
-                                                    selectedArticleData.ctaDescription
-                                                )}
-                                                disabled={savingArticle}
-                                                className="bg-zinc-900 hover:bg-zinc-800"
-                                            >
-                                                {savingArticle ? (
-                                                    <>
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        Saving...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Save className="h-4 w-4 mr-2" />
-                                                        Save Content
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    {/* Danger Zone */}
-                                    <div className="border border-red-100 bg-red-50/50 p-4 rounded-lg">
-                                        <h4 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">
-                                            Danger Zone
-                                        </h4>
-                                        <p className="text-xs text-zinc-500 mb-3">
-                                            Once you delete an article, there is no going back. Please be certain.
-                                        </p>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleDeleteArticle(selectedArticle)}
-                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                        >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete Article
-                                        </Button>
-                                    </div>
-
-                                    <Separator className="bg-zinc-100" />
-
-                                    {/* Comments Manager */}
-                                    <div>
-                                        <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
-                                            <MessageSquare className="h-4 w-4 text-zinc-500" />
-                                            Comments Manager
-                                        </h3>
-                                        <CommentEditor
-                                            comments={selectedArticleData.comments || []}
-                                            onChange={(newComments) => handleSaveComments(
-                                                selectedArticle,
-                                                newComments,
-                                                selectedArticleData.ctaText,
-                                                selectedArticleData.ctaTitle,
-                                                selectedArticleData.ctaDescription
-                                            )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="defaultCtaUrl">Default CTA URL</Label>
+                                        <Input
+                                            id="defaultCtaUrl"
+                                            value={config?.defaultCtaUrl || ''}
+                                            onChange={(e) => updateGlobalConfig('defaultCtaUrl', e.target.value)}
+                                            placeholder="https://..."
                                         />
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-zinc-400 py-20">
-                                    <FileText className="h-12 w-12 mb-4 text-zinc-200" />
-                                    <p className="text-sm">Select an article to edit</p>
-                                </div>
-                            )}
-                        </div>
+                                <DialogFooter>
+                                    <Button
+                                        onClick={handleSaveConfig}
+                                        disabled={savingConfig}
+                                        className="bg-zinc-900 hover:bg-zinc-800"
+                                    >
+                                        {savingConfig ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="h-4 w-4 mr-2" />
+                                                Save Settings
+                                            </>
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                        
+                        {/* Create Article Button */}
+                        <Button asChild className="bg-zinc-900 hover:bg-zinc-800">
+                            <Link href="/admin/create">
+                                <Plus className="h-4 w-4 mr-2" />
+                                New Article
+                            </Link>
+                        </Button>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                </div>
+
+                {/* Search */}
+                <div className="relative w-full sm:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    <Input
+                        placeholder="Search by title or slug..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 border-zinc-200"
+                    />
+                </div>
+
+                {/* Table */}
+                <div className="border border-zinc-200 rounded-lg overflow-hidden bg-white">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+                                <TableHead className="font-semibold text-zinc-700">Title</TableHead>
+                                <TableHead className="font-semibold text-zinc-700 w-[180px]">Slug</TableHead>
+                                <TableHead className="font-semibold text-zinc-700 w-[100px] text-center">Comments</TableHead>
+                                <TableHead className="font-semibold text-zinc-700 w-[140px] text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredArticles.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-12 text-zinc-400">
+                                        {searchQuery ? 'No articles match your search' : 'No articles yet'}
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredArticles.map((article) => (
+                                    <TableRow 
+                                        key={article.slug} 
+                                        className="cursor-pointer hover:bg-zinc-50 transition-colors"
+                                        onClick={() => openArticlePanel(article)}
+                                    >
+                                        <TableCell>
+                                            <span className="font-medium text-zinc-900 line-clamp-1">
+                                                {article.title}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-zinc-500 text-sm font-mono">
+                                                /{article.slug}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 hover:bg-zinc-100">
+                                                {article.comments?.length || 0}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-zinc-500 hover:text-zinc-900"
+                                                    asChild
+                                                >
+                                                    <a href={`/articles/${article.slug}`} target="_blank">
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-zinc-500 hover:text-zinc-900"
+                                                    asChild
+                                                >
+                                                    <Link href={`/admin/articles/${article.slug}`}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-zinc-500 hover:text-red-600"
+                                                    onClick={() => confirmDelete(article.slug)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+
+            {/* Article Config Slide Panel */}
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+                    {selectedArticle && (
+                        <>
+                            <SheetHeader className="mb-6">
+                                <SheetTitle className="text-lg font-semibold line-clamp-2">
+                                    {selectedArticle.title}
+                                </SheetTitle>
+                                <SheetDescription className="font-mono text-xs">
+                                    /{selectedArticle.slug}
+                                </SheetDescription>
+                            </SheetHeader>
+
+                            <div className="space-y-6">
+                                {/* Quick Actions */}
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" asChild className="flex-1">
+                                        <a href={`/articles/${selectedArticle.slug}`} target="_blank">
+                                            <ExternalLink className="h-4 w-4 mr-2" />
+                                            View Live
+                                        </a>
+                                    </Button>
+                                    <Button size="sm" asChild className="flex-1 bg-zinc-900 hover:bg-zinc-800">
+                                        <Link href={`/admin/articles/${selectedArticle.slug}`}>
+                                            <Pencil className="h-4 w-4 mr-2" />
+                                            Visual Editor
+                                        </Link>
+                                    </Button>
+                                </div>
+
+                                <Separator />
+
+                                {/* Tracking Override */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                        <Settings className="h-4 w-4 text-zinc-500" />
+                                        Tracking Override
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-zinc-500">Pixel ID</Label>
+                                            <Input
+                                                placeholder={`Default: ${config?.defaultPixelId || 'Not set'}`}
+                                                value={getArticleConfigValue(selectedArticle.slug, 'pixelId')}
+                                                onChange={(e) => updateArticleConfig(selectedArticle.slug, 'pixelId', e.target.value)}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-zinc-500">CTA URL</Label>
+                                            <Input
+                                                placeholder={`Default: ${config?.defaultCtaUrl || 'Not set'}`}
+                                                value={getArticleConfigValue(selectedArticle.slug, 'ctaUrl')}
+                                                onChange={(e) => updateArticleConfig(selectedArticle.slug, 'ctaUrl', e.target.value)}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleSaveConfig}
+                                            disabled={savingConfig}
+                                            className="w-full"
+                                        >
+                                            {savingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Tracking Config'}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* CTA Content */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-zinc-500" />
+                                        CTA Content
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-zinc-500">Title</Label>
+                                            <Input
+                                                placeholder="e.g. Curious about the science?"
+                                                value={selectedArticle.ctaTitle || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaTitle: e.target.value })}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-zinc-500">Button Text</Label>
+                                            <Input
+                                                placeholder="e.g. Check Availability »"
+                                                value={selectedArticle.ctaText || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaText: e.target.value })}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-zinc-500">Subtext</Label>
+                                            <Input
+                                                placeholder="e.g. Secure, verified link..."
+                                                value={selectedArticle.ctaDescription || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaDescription: e.target.value })}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <Separator />
+
+                                {/* Comments Manager */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                        <MessageSquare className="h-4 w-4 text-zinc-500" />
+                                        Comments ({selectedArticle.comments?.length || 0})
+                                    </h3>
+                                    <CommentEditor
+                                        comments={selectedArticle.comments || []}
+                                        onChange={(newComments) => setSelectedArticle({ ...selectedArticle, comments: newComments })}
+                                    />
+                                </div>
+
+                                <Separator />
+
+                                {/* Save Button */}
+                                <Button
+                                    onClick={handleSaveArticle}
+                                    disabled={savingArticle}
+                                    className="w-full bg-zinc-900 hover:bg-zinc-800"
+                                >
+                                    {savingArticle ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="h-4 w-4 mr-2" />
+                                            Save Article
+                                        </>
+                                    )}
+                                </Button>
+
+                                {/* Danger Zone */}
+                                <div className="border border-red-200 bg-red-50 p-4 rounded-lg">
+                                    <h4 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2">
+                                        Danger Zone
+                                    </h4>
+                                    <p className="text-xs text-zinc-500 mb-3">
+                                        Permanently delete this article. This cannot be undone.
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => confirmDelete(selectedArticle.slug)}
+                                        className="border-red-200 text-red-600 hover:bg-red-100 hover:text-red-700"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete Article
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Article</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong className="text-zinc-900">/{articleToDelete}</strong>? 
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteArticle}
+                            disabled={deleting}
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                        >
+                            {deleting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deleting...
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
