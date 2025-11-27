@@ -158,8 +158,11 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
         },
     });
 
-    // Auto-resize textareas on mount and content change
+    // Auto-resize textareas on mount, content change, and preview mode switch
     useLayoutEffect(() => {
+        // Only run when in desktop mode (textareas are visible)
+        if (previewMode !== 'desktop') return;
+        
         const resize = () => {
             if (titleRef.current) {
                 titleRef.current.style.height = 'auto';
@@ -174,12 +177,13 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
         // Initial resize
         resize();
         
-        // Multiple resize attempts to catch font loading
+        // Multiple resize attempts to catch font loading and mode switch rendering
         const timers = [
+            setTimeout(resize, 0),    // Next tick
             setTimeout(resize, 50),
-            setTimeout(resize, 150),
-            setTimeout(resize, 300),
-            setTimeout(resize, 500),
+            setTimeout(resize, 100),
+            setTimeout(resize, 200),
+            setTimeout(resize, 400),
         ];
         
         // Also wait for fonts
@@ -189,11 +193,12 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
         });
 
         return () => timers.forEach(clearTimeout);
-    }, [article.title, article.subtitle]);
+    }, [article.title, article.subtitle, previewMode]); // Added previewMode dependency
     
     // Also resize on window load (catches late font loading)
     useEffect(() => {
         const resize = () => {
+            if (previewMode !== 'desktop') return;
             if (titleRef.current) {
                 titleRef.current.style.height = 'auto';
                 titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
@@ -206,7 +211,7 @@ export default function LiveArticleEditor({ article: initialArticle, onSave }: L
         
         window.addEventListener('load', resize);
         return () => window.removeEventListener('load', resize);
-    }, []);
+    }, [previewMode]);
 
     // Send article updates to iframe
     useEffect(() => {
