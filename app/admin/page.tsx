@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -48,6 +49,19 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { toast } from 'sonner';
 import {
     Search,
@@ -60,8 +74,9 @@ import {
     Plus,
     Save,
     Loader2,
-    MoreHorizontal,
-    X,
+    Check,
+    ChevronsUpDown,
+    Link2,
 } from 'lucide-react';
 
 interface ArticleConfig {
@@ -86,6 +101,20 @@ interface Config {
     articles: Record<string, ArticleConfig | string>;
 }
 
+interface Pixel {
+    id: string;
+    pixel_id: string;
+    name: string;
+    created_at: string;
+}
+
+interface CtaUrl {
+    id: string;
+    url: string;
+    name: string;
+    created_at: string;
+}
+
 export default function AdminDashboard() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -100,12 +129,28 @@ export default function AdminDashboard() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    
+    // Pixels & CTAs state
+    const [pixels, setPixels] = useState<Pixel[]>([]);
+    const [ctas, setCtas] = useState<CtaUrl[]>([]);
+    const [newPixelId, setNewPixelId] = useState('');
+    const [newPixelName, setNewPixelName] = useState('');
+    const [newCtaUrl, setNewCtaUrl] = useState('');
+    const [addingPixel, setAddingPixel] = useState(false);
+    const [addingCta, setAddingCta] = useState(false);
+    const [pixelPopoverOpen, setPixelPopoverOpen] = useState(false);
+    const [ctaPopoverOpen, setCtaPopoverOpen] = useState(false);
+    const [showAddPixelForm, setShowAddPixelForm] = useState(false);
+    const [showAddCtaForm, setShowAddCtaForm] = useState(false);
+    
     const router = useRouter();
 
     useEffect(() => {
         checkAuth();
         fetchConfig();
         fetchArticles();
+        fetchPixels();
+        fetchCtas();
     }, []);
 
     const checkAuth = async () => {
@@ -158,6 +203,117 @@ export default function AdminDashboard() {
         }
     };
 
+    const fetchPixels = async () => {
+        try {
+            const res = await fetch('/api/pixels');
+            if (res.ok) {
+                const data = await res.json();
+                setPixels(data);
+            }
+        } catch (e) {
+            console.error('Failed to fetch pixels', e);
+        }
+    };
+
+    const fetchCtas = async () => {
+        try {
+            const res = await fetch('/api/ctas');
+            if (res.ok) {
+                const data = await res.json();
+                setCtas(data);
+            }
+        } catch (e) {
+            console.error('Failed to fetch CTAs', e);
+        }
+    };
+
+    const handleAddPixel = async () => {
+        if (!newPixelId.trim() || !newPixelName.trim()) {
+            toast.error('Pixel ID and name are required');
+            return;
+        }
+        setAddingPixel(true);
+        try {
+            const res = await fetch('/api/pixels', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pixel_id: newPixelId, name: newPixelName }),
+            });
+            if (res.ok) {
+                const pixel = await res.json();
+                setPixels([pixel, ...pixels]);
+                setNewPixelId('');
+                setNewPixelName('');
+                setShowAddPixelForm(false);
+                toast.success('Pixel added');
+            } else {
+                const error = await res.json();
+                toast.error(error.error || 'Failed to add pixel');
+            }
+        } catch (e) {
+            toast.error('Failed to add pixel');
+        } finally {
+            setAddingPixel(false);
+        }
+    };
+
+    const handleAddCta = async () => {
+        if (!newCtaUrl.trim()) {
+            toast.error('CTA URL is required');
+            return;
+        }
+        setAddingCta(true);
+        try {
+            const res = await fetch('/api/ctas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: newCtaUrl }),
+            });
+            if (res.ok) {
+                const cta = await res.json();
+                setCtas([cta, ...ctas]);
+                setNewCtaUrl('');
+                setShowAddCtaForm(false);
+                toast.success('CTA added');
+            } else {
+                const error = await res.json();
+                toast.error(error.error || 'Failed to add CTA');
+            }
+        } catch (e) {
+            toast.error('Failed to add CTA');
+        } finally {
+            setAddingCta(false);
+        }
+    };
+
+    const handleDeletePixel = async (id: string) => {
+        try {
+            const res = await fetch(`/api/pixels?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setPixels(pixels.filter(p => p.id !== id));
+                toast.success('Pixel deleted');
+            } else {
+                toast.error('Failed to delete pixel');
+            }
+        } catch (e) {
+            toast.error('Failed to delete pixel');
+        }
+    };
+
+    const handleDeleteCta = async (id: string) => {
+        try {
+            const res = await fetch(`/api/ctas?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setCtas(ctas.filter(c => c.id !== id));
+                toast.success('CTA deleted');
+            } else {
+                toast.error('Failed to delete CTA');
+            }
+        } catch (e) {
+            toast.error('Failed to delete CTA');
+        }
+    };
+
     const handleSaveConfig = async () => {
         if (!config) return;
         setSavingConfig(true);
@@ -169,7 +325,6 @@ export default function AdminDashboard() {
             });
             if (res.ok) {
                 toast.success('Settings saved');
-                setSettingsOpen(false);
             } else {
                 toast.error('Failed to save settings');
             }
@@ -241,12 +396,6 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateGlobalConfig = (key: 'defaultPixelId' | 'defaultCtaUrl', value: string) => {
-        if (config) {
-            setConfig({ ...config, [key]: value });
-        }
-    };
-
     const updateArticleConfig = (slug: string, key: 'pixelId' | 'ctaUrl', value: string) => {
         if (!config) return;
         const currentArticleConfig = config.articles?.[slug];
@@ -274,6 +423,22 @@ export default function AdminDashboard() {
         if (!articleConfig) return '';
         if (typeof articleConfig === 'string') return key === 'pixelId' ? articleConfig : '';
         return articleConfig[key] || '';
+    };
+
+    // Helper to get pixel display text
+    const getPixelDisplay = (pixelId: string) => {
+        if (!pixelId) return 'Select pixel...';
+        const pixel = pixels.find(p => p.pixel_id === pixelId);
+        if (pixel) return `${pixel.pixel_id} (${pixel.name})`;
+        return pixelId;
+    };
+
+    // Helper to get CTA display text
+    const getCtaDisplay = (url: string) => {
+        if (!url) return 'Select CTA URL...';
+        const cta = ctas.find(c => c.url === url);
+        if (cta) return `${cta.name} - ${url.slice(0, 40)}${url.length > 40 ? '...' : ''}`;
+        return url.slice(0, 50) + (url.length > 50 ? '...' : '');
     };
 
     // Filter articles by search query
@@ -341,52 +506,183 @@ export default function AdminDashboard() {
                                     <Settings className="h-4 w-4" />
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
+                            <DialogContent className="sm:max-w-xl">
                                 <DialogHeader>
                                     <DialogTitle>Global Settings</DialogTitle>
                                     <DialogDescription>
-                                        Default tracking and CTA settings for all articles
+                                        Manage your Facebook Pixels and CTA URLs
                                     </DialogDescription>
                                 </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="defaultPixelId">Default Pixel ID</Label>
-                                        <Input
-                                            id="defaultPixelId"
-                                value={config?.defaultPixelId || ''}
-                                onChange={(e) => updateGlobalConfig('defaultPixelId', e.target.value)}
-                                            placeholder="Enter Facebook Pixel ID"
-                            />
-                        </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="defaultCtaUrl">Default CTA URL</Label>
-                                        <Input
-                                            id="defaultCtaUrl"
-                                value={config?.defaultCtaUrl || ''}
-                                onChange={(e) => updateGlobalConfig('defaultCtaUrl', e.target.value)}
-                                            placeholder="https://..."
-                            />
-                        </div>
-                    </div>
-                                <DialogFooter>
-                                    <Button
-                            onClick={handleSaveConfig}
-                                        disabled={savingConfig}
-                                        className="bg-zinc-900 hover:bg-zinc-800"
-                                    >
-                                        {savingConfig ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Saving...
-                                            </>
+                                
+                                <Tabs defaultValue="pixels" className="mt-4">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="pixels">Pixels ({pixels.length})</TabsTrigger>
+                                        <TabsTrigger value="ctas">CTAs ({ctas.length})</TabsTrigger>
+                                    </TabsList>
+                                    
+                                    <TabsContent value="pixels" className="mt-4 space-y-4">
+                                        {/* Add New Pixel Form */}
+                                        {showAddPixelForm ? (
+                                            <div className="border border-zinc-200 rounded-lg p-4 space-y-3 bg-zinc-50">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-zinc-500">Pixel ID</Label>
+                                                    <Input
+                                                        placeholder="e.g. 1234567890123456"
+                                                        value={newPixelId}
+                                                        onChange={(e) => setNewPixelId(e.target.value)}
+                                                        className="text-sm"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-zinc-500">Name (for identification)</Label>
+                                                    <Input
+                                                        placeholder="e.g. Nuora, Client ABC"
+                                                        value={newPixelName}
+                                                        onChange={(e) => setNewPixelName(e.target.value)}
+                                                        className="text-sm"
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        onClick={handleAddPixel} 
+                                                        disabled={addingPixel}
+                                                        size="sm"
+                                                        className="bg-zinc-900 hover:bg-zinc-800"
+                                                    >
+                                                        {addingPixel ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Pixel'}
+                                                    </Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setShowAddPixelForm(false);
+                                                            setNewPixelId('');
+                                                            setNewPixelName('');
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ) : (
-                                            <>
-                                                <Save className="h-4 w-4 mr-2" />
-                                                Save Settings
-                                            </>
+                                            <Button 
+                                                variant="outline" 
+                                                className="w-full border-dashed"
+                                                onClick={() => setShowAddPixelForm(true)}
+                                            >
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Add New Pixel
+                                            </Button>
                                         )}
-                                    </Button>
-                                </DialogFooter>
+                                        
+                                        {/* Pixels List */}
+                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {pixels.length === 0 ? (
+                                                <p className="text-sm text-zinc-400 text-center py-4">No pixels added yet</p>
+                                            ) : (
+                                                pixels.map((pixel) => (
+                                                    <div 
+                                                        key={pixel.id} 
+                                                        className="flex items-center justify-between p-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 transition-colors"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-zinc-900 truncate">
+                                                                {pixel.pixel_id}
+                                                            </p>
+                                                            <p className="text-xs text-zinc-500">{pixel.name}</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-zinc-400 hover:text-red-600"
+                                                            onClick={() => handleDeletePixel(pixel.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </TabsContent>
+                                    
+                                    <TabsContent value="ctas" className="mt-4 space-y-4">
+                                        {/* Add New CTA Form */}
+                                        {showAddCtaForm ? (
+                                            <div className="border border-zinc-200 rounded-lg p-4 space-y-3 bg-zinc-50">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-zinc-500">CTA URL</Label>
+                                                    <Input
+                                                        placeholder="https://example.com/product"
+                                                        value={newCtaUrl}
+                                                        onChange={(e) => setNewCtaUrl(e.target.value)}
+                                                        className="text-sm"
+                                                    />
+                                                    <p className="text-xs text-zinc-400">
+                                                        Name will be auto-generated from domain
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button 
+                                                        onClick={handleAddCta} 
+                                                        disabled={addingCta}
+                                                        size="sm"
+                                                        className="bg-zinc-900 hover:bg-zinc-800"
+                                                    >
+                                                        {addingCta ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add CTA'}
+                                                    </Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setShowAddCtaForm(false);
+                                                            setNewCtaUrl('');
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Button 
+                                                variant="outline" 
+                                                className="w-full border-dashed"
+                                                onClick={() => setShowAddCtaForm(true)}
+                                            >
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Add New CTA URL
+                                            </Button>
+                                        )}
+                                        
+                                        {/* CTAs List */}
+                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                            {ctas.length === 0 ? (
+                                                <p className="text-sm text-zinc-400 text-center py-4">No CTAs added yet</p>
+                                            ) : (
+                                                ctas.map((cta) => (
+                                                    <div 
+                                                        key={cta.id} 
+                                                        className="flex items-center justify-between p-3 border border-zinc-200 rounded-lg bg-white hover:bg-zinc-50 transition-colors"
+                                                    >
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-zinc-900">
+                                                                {cta.name}
+                                                            </p>
+                                                            <p className="text-xs text-zinc-500 truncate">{cta.url}</p>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-zinc-400 hover:text-red-600"
+                                                            onClick={() => handleDeleteCta(cta.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
                             </DialogContent>
                         </Dialog>
                         
@@ -524,79 +820,213 @@ export default function AdminDashboard() {
 
                                 <Separator />
 
-                                {/* Two column layout for tracking and CTA */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                                    {/* Tracking Override */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                                            <Settings className="h-4 w-4 text-zinc-500" />
-                                            Tracking Override
-                                        </h3>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-zinc-500">Pixel ID</Label>
-                                                <Input
-                                                    placeholder={`Default: ${config?.defaultPixelId || 'Not set'}`}
-                                                    value={getArticleConfigValue(selectedArticle.slug, 'pixelId')}
-                                                    onChange={(e) => updateArticleConfig(selectedArticle.slug, 'pixelId', e.target.value)}
-                                                    className="text-sm"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-zinc-500">CTA URL</Label>
-                                                <Input
-                                                    placeholder={`Default: ${config?.defaultCtaUrl || 'Not set'}`}
-                                                    value={getArticleConfigValue(selectedArticle.slug, 'ctaUrl')}
-                                                    onChange={(e) => updateArticleConfig(selectedArticle.slug, 'ctaUrl', e.target.value)}
-                                                    className="text-sm"
-                                                />
-                                            </div>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={handleSaveConfig}
-                                                disabled={savingConfig}
-                                                className="w-full"
-                                            >
-                                                {savingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Tracking Config'}
-                                            </Button>
-                                        </div>
+                                {/* Tracking Override with Comboboxes */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                        <Settings className="h-4 w-4 text-zinc-500" />
+                                        Tracking Override
+                                    </h3>
+                                    
+                                    {/* Pixel Selector */}
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-zinc-500">Pixel ID</Label>
+                                        <Popover open={pixelPopoverOpen} onOpenChange={setPixelPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={pixelPopoverOpen}
+                                                    className="w-full justify-between font-normal text-left"
+                                                >
+                                                    <span className="truncate">
+                                                        {getPixelDisplay(getArticleConfigValue(selectedArticle.slug, 'pixelId'))}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Search pixels..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No pixel found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                value=""
+                                                                onSelect={() => {
+                                                                    updateArticleConfig(selectedArticle.slug, 'pixelId', '');
+                                                                    setPixelPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        !getArticleConfigValue(selectedArticle.slug, 'pixelId') ? "opacity-100" : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                Use default
+                                                            </CommandItem>
+                                                            {pixels.map((pixel) => (
+                                                                <CommandItem
+                                                                    key={pixel.id}
+                                                                    value={`${pixel.pixel_id} ${pixel.name}`}
+                                                                    onSelect={() => {
+                                                                        updateArticleConfig(selectedArticle.slug, 'pixelId', pixel.pixel_id);
+                                                                        setPixelPopoverOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-4 w-4",
+                                                                            getArticleConfigValue(selectedArticle.slug, 'pixelId') === pixel.pixel_id ? "opacity-100" : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    <span className="font-mono text-sm">{pixel.pixel_id}</span>
+                                                                    <span className="text-zinc-500 ml-2">({pixel.name})</span>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                onSelect={() => {
+                                                                    setPixelPopoverOpen(false);
+                                                                    setSettingsOpen(true);
+                                                                }}
+                                                                className="text-zinc-500"
+                                                            >
+                                                                <Plus className="mr-2 h-4 w-4" />
+                                                                Add new pixel...
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                     </div>
+                                    
+                                    {/* CTA URL Selector */}
+                                    <div className="space-y-2">
+                                        <Label className="text-xs text-zinc-500">CTA URL</Label>
+                                        <Popover open={ctaPopoverOpen} onOpenChange={setCtaPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={ctaPopoverOpen}
+                                                    className="w-full justify-between font-normal text-left"
+                                                >
+                                                    <span className="truncate">
+                                                        {getCtaDisplay(getArticleConfigValue(selectedArticle.slug, 'ctaUrl'))}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Search CTAs..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No CTA found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                value=""
+                                                                onSelect={() => {
+                                                                    updateArticleConfig(selectedArticle.slug, 'ctaUrl', '');
+                                                                    setCtaPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        !getArticleConfigValue(selectedArticle.slug, 'ctaUrl') ? "opacity-100" : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                Use default
+                                                            </CommandItem>
+                                                            {ctas.map((cta) => (
+                                                                <CommandItem
+                                                                    key={cta.id}
+                                                                    value={`${cta.name} ${cta.url}`}
+                                                                    onSelect={() => {
+                                                                        updateArticleConfig(selectedArticle.slug, 'ctaUrl', cta.url);
+                                                                        setCtaPopoverOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-4 w-4",
+                                                                            getArticleConfigValue(selectedArticle.slug, 'ctaUrl') === cta.url ? "opacity-100" : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    <div className="flex flex-col">
+                                                                        <span className="font-medium">{cta.name}</span>
+                                                                        <span className="text-xs text-zinc-400 truncate max-w-[300px]">{cta.url}</span>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                onSelect={() => {
+                                                                    setCtaPopoverOpen(false);
+                                                                    setSettingsOpen(true);
+                                                                }}
+                                                                className="text-zinc-500"
+                                                            >
+                                                                <Plus className="mr-2 h-4 w-4" />
+                                                                Add new CTA...
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSaveConfig}
+                                        disabled={savingConfig}
+                                        className="w-full"
+                                    >
+                                        {savingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Tracking Config'}
+                                    </Button>
+                                </div>
 
-                                    {/* CTA Content */}
-                                    <div className="space-y-4">
-                                        <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                                            <FileText className="h-4 w-4 text-zinc-500" />
-                                            CTA Content
-                                        </h3>
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-zinc-500">Title</Label>
-                                                <Input
-                                                    placeholder="e.g. Curious about the science?"
-                                                    value={selectedArticle.ctaTitle || ''}
-                                                    onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaTitle: e.target.value })}
-                                                    className="text-sm"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-zinc-500">Button Text</Label>
-                                                <Input
-                                                    placeholder="e.g. Check Availability »"
-                                                    value={selectedArticle.ctaText || ''}
-                                                    onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaText: e.target.value })}
-                                                    className="text-sm"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-zinc-500">Subtext</Label>
-                                                <Input
-                                                    placeholder="e.g. Secure, verified link..."
-                                                    value={selectedArticle.ctaDescription || ''}
-                                                    onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaDescription: e.target.value })}
-                                                    className="text-sm"
-                                                />
-                                            </div>
+                                <Separator />
+
+                                {/* CTA Content */}
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-zinc-500" />
+                                        CTA Content
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-zinc-500">Title</Label>
+                                            <Input
+                                                placeholder="e.g. Curious about the science?"
+                                                value={selectedArticle.ctaTitle || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaTitle: e.target.value })}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-zinc-500">Button Text</Label>
+                                            <Input
+                                                placeholder="e.g. Check Availability »"
+                                                value={selectedArticle.ctaText || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaText: e.target.value })}
+                                                className="text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2 sm:col-span-2">
+                                            <Label className="text-xs text-zinc-500">Subtext</Label>
+                                            <Input
+                                                placeholder="e.g. Secure, verified link..."
+                                                value={selectedArticle.ctaDescription || ''}
+                                                onChange={(e) => setSelectedArticle({ ...selectedArticle, ctaDescription: e.target.value })}
+                                                className="text-sm"
+                                            />
                                         </div>
                                     </div>
                                 </div>
