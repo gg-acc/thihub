@@ -36,79 +36,89 @@ export default function ComparisonTableNode(props: any) {
 
     return (
         <NodeViewWrapper className="my-8 not-prose">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ring-1 ring-gray-950/5 group">
+            <div className="bg-emerald-50/30 rounded-xl border-2 border-emerald-500/20 shadow-sm overflow-hidden group">
                 {/* Header */}
-                <div className="grid grid-cols-[1fr,auto,auto,40px] bg-gray-50/50 border-b border-gray-200 divide-x divide-gray-200">
-                    <div className="p-3 pl-4 flex items-center">
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Feature</span>
-                    </div>
-                    <div className="p-3 w-24 sm:w-32 text-center bg-emerald-50/30">
+                <div className="grid grid-cols-[100px_1fr_100px_40px] bg-white border-b border-emerald-100">
+                    {/* Us Header */}
+                    <div className="p-2 flex items-center justify-center bg-emerald-50/50 border-r border-emerald-100">
                         <input
                             type="text"
                             value={ourBrand}
                             onChange={(e) => updateAttributes({ ourBrand: e.target.value })}
-                            className="w-full text-center text-xs sm:text-sm font-bold text-emerald-800 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-emerald-800/50"
+                            className="w-full text-center text-xs font-black uppercase tracking-tight text-emerald-800 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-emerald-800/50 leading-tight"
                             placeholder="Our Brand"
                         />
                     </div>
-                    <div className="p-3 w-24 sm:w-32 text-center bg-gray-50/50">
+                    
+                    {/* Feature Header */}
+                    <div className="p-2 flex items-center justify-center">
+                        <span className="text-sm font-bold text-gray-900">Feature</span>
+                    </div>
+
+                    {/* Them Header */}
+                    <div className="p-2 flex items-center justify-center bg-gray-50/50 border-l border-emerald-100">
                         <input
                             type="text"
                             value={theirBrand}
                             onChange={(e) => updateAttributes({ theirBrand: e.target.value })}
-                            className="w-full text-center text-xs sm:text-sm font-bold text-gray-500 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400"
+                            className="w-full text-center text-xs font-bold uppercase tracking-tight text-gray-500 bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400 leading-tight"
                             placeholder="Competitors"
                         />
                     </div>
+                    
+                    {/* Actions Header Spacer */}
                     <div className="bg-gray-50"></div>
                 </div>
 
                 {/* Rows */}
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-emerald-100/50 bg-white">
                     {features.map((feature: any, index: number) => (
                         <div
                             key={index}
-                            className="grid grid-cols-[1fr,auto,auto,40px] divide-x divide-gray-100 transition-colors hover:bg-gray-50/50 relative"
+                            className={cn(
+                                "grid grid-cols-[100px_1fr_100px_40px] items-stretch transition-colors hover:bg-emerald-50/10",
+                                index % 2 === 0 ? "bg-emerald-50/30" : "bg-white"
+                            )}
                         >
-                            {/* Feature Name */}
-                            <div className="p-3 pl-4 flex items-center">
-                                <input
-                                    type="text"
-                                    value={feature.name}
-                                    onChange={(e) => updateFeatureName(index, e.target.value)}
-                                    className="w-full text-xs sm:text-sm text-gray-700 font-medium bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400"
-                                    placeholder="Feature Name..."
-                                />
-                            </div>
-
-                            {/* Our Brand */}
+                            {/* Us Column (Toggle) */}
                             <div 
-                                className="p-3 w-24 sm:w-32 flex items-center justify-center bg-emerald-50/10 cursor-pointer hover:bg-emerald-100/30 transition-colors"
+                                className="p-2 flex items-center justify-center border-r border-emerald-100/50 bg-emerald-50/30 cursor-pointer hover:bg-emerald-100/50"
                                 onClick={() => toggleFeature(index, 'us')}
                             >
                                 {feature.us ? (
-                                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
-                                        <Check className="w-3.5 h-3.5 text-emerald-600" strokeWidth={3} />
+                                    <div className="w-6 h-6 rounded bg-emerald-500 flex items-center justify-center shadow-sm">
+                                        <Check className="w-4 h-4 text-white" strokeWidth={3} />
                                     </div>
                                 ) : (
-                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <X className="w-3.5 h-3.5 text-gray-400" strokeWidth={3} />
+                                    <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center">
+                                        <X className="w-4 h-4 text-gray-400" strokeWidth={3} />
                                     </div>
                                 )}
                             </div>
 
-                            {/* Their Brand */}
+                            {/* Feature Name Input */}
+                            <div className="p-2 flex items-center justify-center">
+                                <input
+                                    type="text"
+                                    value={feature.name}
+                                    onChange={(e) => updateFeatureName(index, e.target.value)}
+                                    className="w-full text-center text-sm text-gray-700 font-medium bg-transparent border-none focus:ring-0 focus:outline-none placeholder-gray-400 leading-snug"
+                                    placeholder="Feature Name..."
+                                />
+                            </div>
+
+                            {/* Them Column (Toggle) */}
                             <div 
-                                className="p-3 w-24 sm:w-32 flex items-center justify-center cursor-pointer hover:bg-gray-100/50 transition-colors"
+                                className="p-2 flex items-center justify-center border-l border-emerald-100/50 cursor-pointer hover:bg-gray-50"
                                 onClick={() => toggleFeature(index, 'them')}
                             >
                                 {feature.them ? (
-                                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
-                                        <Check className="w-3.5 h-3.5 text-emerald-600" strokeWidth={3} />
+                                    <div className="w-6 h-6 rounded bg-emerald-500 flex items-center justify-center shadow-sm">
+                                        <Check className="w-4 h-4 text-white" strokeWidth={3} />
                                     </div>
                                 ) : (
-                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <X className="w-3.5 h-3.5 text-gray-400" strokeWidth={3} />
+                                    <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center">
+                                        <X className="w-4 h-4 text-red-500" strokeWidth={3} />
                                     </div>
                                 )}
                             </div>
@@ -120,7 +130,7 @@ export default function ComparisonTableNode(props: any) {
                                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                                     title="Remove row"
                                 >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
                         </div>
@@ -128,15 +138,15 @@ export default function ComparisonTableNode(props: any) {
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-2 bg-gray-50 border-t border-gray-100 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="p-3 bg-gray-50 border-t border-emerald-100 flex justify-center">
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={addFeature}
-                        className="h-7 text-xs text-gray-500 hover:text-emerald-600 hover:bg-emerald-50"
+                        className="h-8 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
                     >
                         <Plus className="w-3 h-3 mr-1.5" />
-                        Add Feature
+                        Add Comparison Feature
                     </Button>
                 </div>
             </div>
