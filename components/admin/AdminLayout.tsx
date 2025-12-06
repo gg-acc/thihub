@@ -33,6 +33,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
+    // Auto-collapse sidebar when editing an article
+    useEffect(() => {
+        if (pathname.startsWith('/admin/articles/')) {
+            setCollapsed(true);
+        }
+    }, [pathname]);
+
     // For login page, render without sidebar
     if (isLoginPage) {
         return (
