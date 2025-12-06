@@ -28,10 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <TripleWhalePixel />
+      </head>
       <body
         className={`${inter.variable} ${merriweather.variable} antialiased bg-gray-50 text-gray-900`}
       >
-        <TripleWhalePixel />
         {children}
       </body>
     </html>
