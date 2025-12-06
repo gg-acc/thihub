@@ -2,7 +2,11 @@
 
 import usePreserveParams from '@/hooks/usePreserveParams';
 
-export default function UrlPreserver() {
-    usePreserveParams();
+interface UrlPreserverProps {
+    articleSlug?: string;
+}
+
+export default function UrlPreserver({ articleSlug }: UrlPreserverProps) {
+    usePreserveParams(articleSlug);
     return null;
 }

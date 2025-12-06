@@ -47,7 +47,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     return (
         <div className="min-h-screen bg-white pb-20 font-serif selection:bg-blue-100 selection:text-blue-900">
             <PixelTracker pixelId={pixelId} />
-            <UrlPreserver />
+            <UrlPreserver articleSlug={slug} />
             <ArticleHeader transparent={true} />
 
             {/* Sticky CTA (conditionally rendered based on article settings) */}

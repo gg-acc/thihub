@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Merriweather } from "next/font/google";
+import TripleWhalePixel from "@/components/TripleWhalePixel";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${merriweather.variable} antialiased bg-gray-50 text-gray-900`}
       >
+        <TripleWhalePixel />
         {children}
       </body>
     </html>
