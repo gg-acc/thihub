@@ -172,10 +172,10 @@ export default function CreateArticlePage() {
                 const writeData = await safeJson(writeRes);
                 if (!writeRes.ok) throw new Error(writeData.error || 'Failed to write article');
 
-                // === STEP 3: Generate images (non-blocking — OK if it fails) ===
+                // === STEP 3: Generate images ===
                 setGenerationStage(2);
                 try {
-                    await fetch('/api/generate-images', {
+                    const imgRes = await fetch('/api/generate-images', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -183,8 +183,13 @@ export default function CreateArticlePage() {
                             productContext: scrapeData.productText?.slice(0, 2000) || '',
                         }),
                     });
-                } catch {
-                    console.warn('Image generation failed, article saved without images');
+                    const imgData = await imgRes.json().catch(() => ({}));
+                    console.log('[ai-write] Image result:', imgData);
+                    if (imgData.imagesGenerated) {
+                        toast.success(`${imgData.imagesGenerated} images generated!`);
+                    }
+                } catch (imgErr) {
+                    console.warn('Image generation failed:', imgErr);
                 }
 
                 toast.success('Article generated successfully!');

@@ -6,28 +6,39 @@ export const maxDuration = 300;
 const IMAGE_MODELS = ['nano-banana-pro-preview', 'gemini-2.5-flash-image'];
 
 async function callImageModel(model: string, prompt: string, apiKey: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-            }),
+    try {
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            console.log(`[images] ${model} returned ${response.status}`);
+            return null;
         }
-    );
+        const data = await response.json();
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+        if (!imagePart?.inlineData) {
+            console.log(`[images] ${model} returned no image data`);
+            return null;
+        }
 
-    if (!response.ok) return null;
-    const data = await response.json();
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-    if (!imagePart?.inlineData) return null;
-
-    return {
-        buffer: Buffer.from(imagePart.inlineData.data, 'base64'),
-        mimeType: imagePart.inlineData.mimeType,
-    };
+        return {
+            buffer: Buffer.from(imagePart.inlineData.data, 'base64'),
+            mimeType: imagePart.inlineData.mimeType,
+        };
+    } catch (err) {
+        console.error(`[images] ${model} threw error:`, err);
+        return null;
+    }
 }
 
 async function generateAndUploadImage(prompt: string, supabase: any): Promise<string | null> {
@@ -46,7 +57,10 @@ async function generateAndUploadImage(prompt: string, supabase: any): Promise<st
             console.log(`[images] ${model} failed, trying next...`);
         }
 
-        if (!result) return null;
+        if (!result) {
+            console.log('[images] All models failed for this prompt');
+            return null;
+        }
 
         const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
         const fileName = `ai-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
@@ -54,11 +68,16 @@ async function generateAndUploadImage(prompt: string, supabase: any): Promise<st
         const { error: uploadError } = await supabase.storage
             .from('article-images')
             .upload(fileName, result.buffer, { contentType: result.mimeType, cacheControl: '3600', upsert: false });
-        if (uploadError) return null;
+        if (uploadError) {
+            console.error('[images] Upload error:', uploadError);
+            return null;
+        }
 
         const { data: { publicUrl } } = supabase.storage.from('article-images').getPublicUrl(fileName);
+        console.log('[images] Uploaded:', publicUrl);
         return publicUrl;
-    } catch {
+    } catch (err) {
+        console.error('[images] generateAndUploadImage error:', err);
         return null;
     }
 }
