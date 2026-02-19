@@ -1,8 +1,16 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export const maxDuration = 300;
+
+function getAdminClient() {
+    return createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+}
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -455,6 +463,7 @@ export async function POST(request: Request) {
         }
 
         const supabase = await createClient();
+        const admin = getAdminClient();
 
         // Check authentication
         const { data: { user } } = await supabase.auth.getUser();
@@ -521,7 +530,7 @@ export async function POST(request: Request) {
         // Step 5: Generate all images in parallel (hero + 4 inline)
         console.log(`[generate] Generating ${imagePrompts.length} images in parallel...`);
         const imageResults = await Promise.all(
-            imagePrompts.map(p => generateAndUploadImage(p, supabase))
+            imagePrompts.map(p => generateAndUploadImage(p, admin))
         );
 
         const heroImage = imageResults[0];

@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export const maxDuration = 300;
+
+// Admin client with service role for storage uploads (bypasses RLS)
+function getAdminClient() {
+    return createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+}
 
 const IMAGE_MODELS = ['nano-banana-pro-preview', 'gemini-2.5-flash-image'];
 
@@ -41,16 +50,19 @@ async function callImageModel(model: string, prompt: string, apiKey: string): Pr
     }
 }
 
-async function generateAndUploadImage(prompt: string, supabase: any): Promise<string | null> {
+async function generateAndUploadImage(prompt: string, adminClient: any): Promise<string | null> {
     try {
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return null;
+        if (!apiKey) {
+            console.error('[images] No GEMINI_API_KEY');
+            return null;
+        }
 
         let result: { buffer: Buffer; mimeType: string } | null = null;
         for (const model of IMAGE_MODELS) {
             result = await callImageModel(model, prompt, apiKey);
             if (result) {
-                console.log(`[images] Used model: ${model}`);
+                console.log(`[images] Generated with: ${model}`);
                 break;
             }
             console.log(`[images] ${model} failed, trying next...`);
@@ -64,15 +76,15 @@ async function generateAndUploadImage(prompt: string, supabase: any): Promise<st
         const ext = result.mimeType === 'image/png' ? 'png' : 'jpg';
         const fileName = `ai-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await adminClient.storage
             .from('article-images')
             .upload(fileName, result.buffer, { contentType: result.mimeType, cacheControl: '3600', upsert: false });
         if (uploadError) {
-            console.error('[images] Upload error:', uploadError);
+            console.error('[images] Upload error:', JSON.stringify(uploadError));
             return null;
         }
 
-        const { data: { publicUrl } } = supabase.storage.from('article-images').getPublicUrl(fileName);
+        const { data: { publicUrl } } = adminClient.storage.from('article-images').getPublicUrl(fileName);
         console.log('[images] Uploaded:', publicUrl);
         return publicUrl;
     } catch (err) {
@@ -146,14 +158,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
         }
 
+        // Use admin client for storage uploads + DB updates (bypasses RLS)
+        const admin = getAdminClient();
+
         // Fetch the article
-        const { data: article, error: fetchError } = await supabase
+        const { data: article, error: fetchError } = await admin
             .from('articles')
             .select('*')
             .eq('slug', slug)
             .single();
 
         if (fetchError || !article) {
+            console.error('[images] Article not found:', slug, fetchError);
             return NextResponse.json({ error: 'Article not found' }, { status: 404 });
         }
 
@@ -165,7 +181,7 @@ export async function POST(request: Request) {
             console.log(`[images] Using ${imagePrompts.length} Claude-generated image prompts`);
             prompts = imagePrompts.map((p: string) => `${baseRule}\n\n${p}`);
         } else {
-            // Fallback: generic prompts based on article content
+            // Fallback: generic prompts based on article content + product context
             console.log('[images] No image prompts from Claude, using generic prompts');
             const productInfo = productContext ? `\n\nPRODUCT CONTEXT:\n${productContext}` : '';
             const contentText = (article.content || '').replace(/<[^>]+>/g, '\n');
@@ -180,7 +196,7 @@ export async function POST(request: Request) {
 
         console.log(`[images] Generating ${prompts.length} images for: ${slug}`);
         const imageResults = await Promise.all(
-            prompts.map(p => generateAndUploadImage(p, supabase))
+            prompts.map(p => generateAndUploadImage(p, admin))
         );
 
         const successCount = imageResults.filter(Boolean).length;
@@ -208,7 +224,7 @@ export async function POST(request: Request) {
             }
         }
 
-        const { error: updateError } = await supabase
+        const { error: updateError } = await admin
             .from('articles')
             .update(updates)
             .eq('slug', slug);
