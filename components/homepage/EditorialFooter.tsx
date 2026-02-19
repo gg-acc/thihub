@@ -2,6 +2,10 @@
 
 import { Shield, Users, Lock, FileText } from 'lucide-react';
 
+interface EditorialFooterProps {
+    brandName?: string;
+}
+
 const footerSections = [
     {
         title: 'Editorial Standards',
@@ -45,7 +49,7 @@ const footerSections = [
     },
 ];
 
-export default function EditorialFooter() {
+export default function EditorialFooter({ brandName = 'The Insider' }: EditorialFooterProps) {
     return (
         <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
             <div className="max-w-7xl mx-auto px-4">
@@ -112,9 +116,9 @@ export default function EditorialFooter() {
 
                     {/* Copyright */}
                     <div className="text-center text-sm text-gray-500">
-                        <p>© 2024 Top Health Insider. All rights reserved.</p>
+                        <p>© {new Date().getFullYear()} {brandName}. All rights reserved.</p>
                         <p className="mt-2 text-xs">
-                            A trusted resource for evidence-based women's health information.
+                            A trusted resource for evidence-based information.
                         </p>
                     </div>
                 </div>

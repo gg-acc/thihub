@@ -8,6 +8,7 @@ import CinematicHero from '@/components/CinematicHero';
 import { StickyCTA } from '@/components/article-v2';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getBranding, getBrandingById } from '@/utils/branding';
 
 // Get single article from API (optimized - fetches only the requested article)
 async function getArticle(slug: string) {
@@ -40,6 +41,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         notFound();
     }
 
+    // Get branding: prefer article's domain_id, fall back to current hostname
+    const brand = article.domainId
+        ? await getBrandingById(article.domainId)
+        : await getBranding();
+
     // Use pixel/CTA from article data (set during generation/editing)
     const pixelId = article.pixelId || '1213472546398709';
     const ctaUrl = article.ctaUrl || 'https://mynuora.com/products/feminine-balance-gummies-1';
@@ -48,7 +54,12 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <div className="min-h-screen bg-white pb-20 font-serif selection:bg-blue-100 selection:text-blue-900">
             <PixelTracker pixelId={pixelId} />
             <UrlPreserver articleSlug={slug} />
-            <ArticleHeader transparent={true} />
+            <ArticleHeader
+                transparent={true}
+                brandName={brand.brandName}
+                logoLetter={brand.logoLetter}
+                logoColor={brand.logoColor}
+            />
 
             {/* Sticky CTA (conditionally rendered based on article settings) */}
             {article.stickyCTAEnabled && (
@@ -94,7 +105,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
                 {/* Facebook Comments Section */}
                 <div className="font-sans border-t border-gray-200 pt-10">
                     <h3 className="text-xl font-bold text-gray-900 mb-6">Discussion</h3>
-                    <FBComments comments={article.comments} />
+                    <FBComments comments={article.comments} brandName={brand.brandName} />
                 </div>
             </main>
         </div>

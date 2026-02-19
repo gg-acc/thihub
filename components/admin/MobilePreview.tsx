@@ -13,9 +13,11 @@ import { ImagePlus, X } from 'lucide-react';
 interface MobilePreviewProps {
     article: any;
     onUpdate?: (article: any) => void;
+    brandName?: string;
+    logoLetter?: string;
 }
 
-export default function MobilePreview({ article, onUpdate }: MobilePreviewProps) {
+export default function MobilePreview({ article, onUpdate, brandName = 'The Insider', logoLetter = 'T' }: MobilePreviewProps) {
     // Read-only editor for content
     const editor = useEditor({
         editable: false,
@@ -64,10 +66,10 @@ export default function MobilePreview({ article, onUpdate }: MobilePreviewProps)
                             <div className="px-4 h-14 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 flex items-center justify-center font-serif font-bold text-lg rounded-sm bg-white text-gray-900">
-                                        T
+                                        {logoLetter}
                                     </div>
                                     <span className="font-serif font-bold text-sm tracking-tight text-white drop-shadow-md">
-                                        Top Health Insider
+                                        {brandName}
                                     </span>
                                 </div>
                                 <div className="text-[8px] font-sans font-bold uppercase tracking-widest px-2 py-1 rounded-full border text-white border-white/30 bg-black/20 backdrop-blur-sm">

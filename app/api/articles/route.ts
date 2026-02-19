@@ -20,7 +20,8 @@ export async function GET() {
             ctaDescription: a.cta_description,
             pixelId: a.pixel_id,
             ctaUrl: a.cta_url,
-            keyTakeaways: a.key_takeaways
+            keyTakeaways: a.key_takeaways,
+            domainId: a.domain_id,
         }));
 
         return NextResponse.json(mappedArticles);

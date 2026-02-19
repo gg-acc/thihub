@@ -50,6 +50,13 @@ interface Article {
     ctaDescription?: string;
     comments?: CommentData[];
     created_at?: string;
+    domainId?: string;
+}
+
+interface Domain {
+    id: string;
+    domain: string;
+    brand_name: string;
 }
 
 export default function AdminDashboard() {
@@ -59,6 +66,7 @@ export default function AdminDashboard() {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [articleToDelete, setArticleToDelete] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [domains, setDomains] = useState<Domain[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -67,10 +75,17 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const articlesRes = await fetch('/api/articles');
+            const [articlesRes, domainsRes] = await Promise.all([
+                fetch('/api/articles'),
+                fetch('/api/domains'),
+            ]);
             if (articlesRes.ok) {
                 const data = await articlesRes.json();
                 setArticles(data);
+            }
+            if (domainsRes.ok) {
+                const data = await domainsRes.json();
+                setDomains(data);
             }
         } catch (e) {
             console.error('Failed to fetch data', e);
@@ -100,6 +115,21 @@ export default function AdminDashboard() {
             setIsDeleteDialogOpen(false);
             setArticleToDelete(null);
         }
+    };
+
+    // Get the live URL for an article based on its domain
+    const getLiveUrl = (article: Article) => {
+        if (article.domainId) {
+            const domain = domains.find(d => d.id === article.domainId);
+            if (domain) {
+                return `https://${domain.domain}/articles/${article.slug}`;
+            }
+        }
+        // Fallback: use first domain if available, otherwise relative
+        if (domains.length > 0) {
+            return `https://${domains[0].domain}/articles/${article.slug}`;
+        }
+        return `/articles/${article.slug}`;
     };
 
     // Filter articles based on search query
@@ -248,9 +278,9 @@ export default function AdminDashboard() {
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button variant="ghost" size="icon" asChild title="View Live">
-                                                        <Link href={`/articles/${article.slug}`} target="_blank">
+                                                        <a href={getLiveUrl(article)} target="_blank" rel="noopener noreferrer">
                                                             <Eye className="h-4 w-4" />
-                                                        </Link>
+                                                        </a>
                                                     </Button>
                                                     <Button variant="ghost" size="icon" asChild title="Edit">
                                                         <Link href={`/admin/articles/${article.slug}`}>

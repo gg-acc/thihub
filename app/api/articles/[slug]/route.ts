@@ -39,6 +39,7 @@ export async function GET(
             stickyCTAOriginalPrice: article.sticky_cta_original_price,
             stickyCTAProductName: article.sticky_cta_product_name,
             articleTheme: article.article_theme,
+            domainId: article.domain_id,
         };
 
         return NextResponse.json(mappedArticle);
@@ -87,6 +88,7 @@ export async function PUT(
             sticky_cta_original_price: body.stickyCTAOriginalPrice,
             sticky_cta_product_name: body.stickyCTAProductName,
             article_theme: body.articleTheme,
+            domain_id: body.domainId,
             updated_at: new Date().toISOString(),
         };
 

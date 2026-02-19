@@ -17,54 +17,68 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Sparkles, Plus, X, FileText, FlaskConical } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, X, FileText, FlaskConical, Globe, Wand2, PenTool, BookOpen, Newspaper, User, Megaphone } from 'lucide-react';
+
+type CreationMode = 'manual' | 'ai-write';
 
 export default function CreateArticlePage() {
     const router = useRouter();
-    const [rawText, setRawText] = useState('');
-    const [slug, setSlug] = useState('');
     const [loading, setLoading] = useState(false);
     const [generationStage, setGenerationStage] = useState(0);
     const stageTimersRef = useRef<NodeJS.Timeout[]>([]);
 
-    // Theme State (V1 or V2)
+    // Creation Mode
+    const [creationMode, setCreationMode] = useState<CreationMode>('ai-write');
+
+    // Manual mode state
+    const [rawText, setRawText] = useState('');
     const [articleTheme, setArticleTheme] = useState<'v1' | 'v2'>('v1');
 
-    // Pixel State
+    // AI Write mode state
+    const [topic, setTopic] = useState('');
+    const [brief, setBrief] = useState('');
+    const [narrativeStyle, setNarrativeStyle] = useState<'first-person' | 'journalism'>('first-person');
+    const [framework, setFramework] = useState<'classic-dr' | 'modern-native'>('modern-native');
+
+    // Shared state
+    const [slug, setSlug] = useState('');
     const [pixels, setPixels] = useState<string[]>([]);
     const [selectedPixel, setSelectedPixel] = useState('');
     const [newPixel, setNewPixel] = useState('');
     const [isAddingPixel, setIsAddingPixel] = useState(false);
-
-    // CTA State
     const [ctas, setCtas] = useState<string[]>([]);
     const [selectedCta, setSelectedCta] = useState('');
     const [newCta, setNewCta] = useState('');
     const [isAddingCta, setIsAddingCta] = useState(false);
+    const [domains, setDomains] = useState<{ id: string; domain: string; brand_name: string; logo_letter: string; logo_color: string }[]>([]);
+    const [selectedDomainId, setSelectedDomainId] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [articlesRes, configRes] = await Promise.all([
+                const [articlesRes, configRes, domainsRes] = await Promise.all([
                     fetch('/api/articles'),
-                    fetch('/api/config')
+                    fetch('/api/config'),
+                    fetch('/api/domains')
                 ]);
+
+                if (domainsRes.ok) {
+                    const domainsData = await domainsRes.json();
+                    setDomains(domainsData);
+                }
 
                 const articles = await articlesRes.json();
                 const config = await configRes.json();
 
-                // Extract unique Pixels
                 const articlePixels = articles.map((a: any) => a.pixelId).filter(Boolean);
                 const allPixels = Array.from(new Set([config.defaultPixelId, ...articlePixels])).filter(Boolean);
                 setPixels(allPixels as string[]);
                 if (allPixels.length > 0) setSelectedPixel(allPixels[0] as string);
 
-                // Extract unique CTAs
                 const articleCtas = articles.map((a: any) => a.ctaUrl).filter(Boolean);
                 const allCtas = Array.from(new Set([config.defaultCtaUrl, ...articleCtas])).filter(Boolean);
                 setCtas(allCtas as string[]);
                 if (allCtas.length > 0) setSelectedCta(allCtas[0] as string);
-
             } catch (err) {
                 console.error('Failed to load data', err);
             }
@@ -72,79 +86,139 @@ export default function CreateArticlePage() {
         fetchData();
     }, []);
 
+    const startStageTimers = (durations: number[]) => {
+        stageTimersRef.current.forEach(timer => clearTimeout(timer));
+        stageTimersRef.current = [];
+        durations.forEach((_, index) => {
+            const timer = setTimeout(() => {
+                setGenerationStage(index + 1);
+            }, durations.slice(0, index + 1).reduce((a, b) => a + b, 0));
+            stageTimersRef.current.push(timer);
+        });
+    };
+
+    const clearTimers = () => {
+        stageTimersRef.current.forEach(timer => clearTimeout(timer));
+        stageTimersRef.current = [];
+    };
+
     const handleGenerate = async () => {
-        if (!rawText) {
+        const finalPixel = isAddingPixel ? newPixel : selectedPixel;
+        const finalCta = isAddingCta ? newCta : selectedCta;
+
+        if (!finalCta) {
+            toast.error('Please select or add a CTA URL');
+            return;
+        }
+
+        if (creationMode === 'manual' && !rawText) {
             toast.error('Please enter the article text');
             return;
         }
 
-        const finalPixel = isAddingPixel ? newPixel : selectedPixel;
-        const finalCta = isAddingCta ? newCta : selectedCta;
-
-        if (!finalPixel) {
-            toast.error('Please select or add a Pixel ID');
-            return;
-        }
-        if (!finalCta) {
-            toast.error('Please select or add a CTA URL');
+        if (creationMode === 'ai-write' && !topic) {
+            toast.error('Please enter a topic/angle');
             return;
         }
 
         setLoading(true);
         setGenerationStage(0);
 
-        // Clear any existing timers
-        stageTimersRef.current.forEach(timer => clearTimeout(timer));
-        stageTimersRef.current = [];
+        if (creationMode === 'ai-write') {
+            // AI Write: Opus takes longer but writes much better
+            startStageTimers([8000, 60000, 40000]);
+        } else {
+            // Manual: existing flow
+            startStageTimers([5000, 10000, 25000]);
+        }
 
-        // Progress through stages while API call is processing
-        const stageDurations = [3000, 4000, 4000];
-        stageDurations.forEach((duration, index) => {
-            const timer = setTimeout(() => {
-                setGenerationStage(index + 1);
-            }, stageDurations.slice(0, index + 1).reduce((a, b) => a + b, 0));
-            stageTimersRef.current.push(timer);
-        });
+        const safeJson = async (r: Response) => {
+            const text = await r.text();
+            try { return JSON.parse(text); }
+            catch { throw new Error('Server timed out. Please try again.'); }
+        };
 
         try {
-            const res = await fetch('/api/generate-article', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    rawText,
-                    slug,
-                    pixelId: finalPixel,
-                    ctaUrl: finalCta,
-                    theme: articleTheme // Add theme to the request
-                })
-            });
+            let res: Response;
 
-            const data = await res.json();
+            if (creationMode === 'ai-write') {
+                // === STEP 1: Scrape CTA URL ===
+                setGenerationStage(0);
+                const scrapeRes = await fetch('/api/generate-advertorial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ctaUrl: finalCta }),
+                });
+                const scrapeData = await safeJson(scrapeRes);
+                if (!scrapeRes.ok) throw new Error(scrapeData.error || 'Failed to analyze product page');
 
-            if (!res.ok) {
-                throw new Error(data.error || 'Failed to generate article');
+                // === STEP 2: Claude writes the article ===
+                setGenerationStage(1);
+                const writeRes = await fetch('/api/generate-advertorial/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic,
+                        ctaUrl: finalCta,
+                        productText: scrapeData.productText,
+                        brief: brief || undefined,
+                        narrativeStyle,
+                        framework,
+                        pixelId: finalPixel,
+                        slug,
+                        domainId: selectedDomainId || undefined,
+                    }),
+                });
+                const writeData = await safeJson(writeRes);
+                if (!writeRes.ok) throw new Error(writeData.error || 'Failed to write article');
+
+                // === STEP 3: Generate images (non-blocking — OK if it fails) ===
+                setGenerationStage(2);
+                try {
+                    await fetch('/api/generate-images', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            slug: writeData.slug,
+                            productContext: scrapeData.productText?.slice(0, 2000) || '',
+                        }),
+                    });
+                } catch {
+                    console.warn('Image generation failed, article saved without images');
+                }
+
+                toast.success('Article generated successfully!');
+                router.push(`/admin/articles/${writeData.slug}`);
+
+            } else {
+                // Manual mode: single request
+                res = await fetch('/api/generate-article', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rawText,
+                        slug,
+                        pixelId: finalPixel,
+                        ctaUrl: finalCta,
+                        theme: articleTheme,
+                        domainId: selectedDomainId || undefined,
+                    })
+                });
+
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Failed to generate article');
+
+                toast.success('Article generated successfully!');
+                router.push(`/admin/articles/${data.slug}`);
             }
 
-            // Wait a moment for blob storage to propagate
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            toast.success('Article generated successfully!');
-            router.push(`/admin/articles/${data.slug}`);
-
         } catch (err: any) {
-            stageTimersRef.current.forEach(timer => clearTimeout(timer));
-            stageTimersRef.current = [];
-            
-            // Handle schema error specifically
+            clearTimers();
             if (err.message && (err.message.includes('PGRST204') || err.message.includes('article_theme'))) {
                 toast.error(
                     <div className="flex flex-col gap-2">
                         <span>Database migration required for V2 features.</span>
-                        <a 
-                            href="/api/setup-v2-schema" 
-                            target="_blank" 
-                            className="underline font-bold text-white hover:text-gray-200"
-                        >
+                        <a href="/api/setup-v2-schema" target="_blank" className="underline font-bold text-white hover:text-gray-200">
                             Click here to update database
                         </a>
                     </div>,
@@ -153,7 +227,6 @@ export default function CreateArticlePage() {
             } else {
                 toast.error(err.message || 'Failed to generate article');
             }
-            
             setLoading(false);
             setGenerationStage(0);
         }
@@ -179,7 +252,7 @@ export default function CreateArticlePage() {
 
     return (
         <>
-            {loading && <GenerationOverlay stage={generationStage} />}
+            {loading && <GenerationOverlay stage={generationStage} mode={creationMode} />}
 
             <div className="max-w-2xl mx-auto space-y-6">
                 {/* Header */}
@@ -195,123 +268,363 @@ export default function CreateArticlePage() {
                     </div>
                 </div>
 
-                {/* Theme Selection Card */}
+                {/* Creation Mode Selection */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Article Theme</CardTitle>
+                        <CardTitle>Creation Mode</CardTitle>
                         <CardDescription>
-                            Choose the style and components for your article
+                            Choose how you want to create your article
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 gap-4">
-                            {/* V1 Option */}
                             <button
-                                onClick={() => setArticleTheme('v1')}
+                                onClick={() => setCreationMode('ai-write')}
                                 className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                                    articleTheme === 'v1'
-                                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                                    creationMode === 'ai-write'
+                                        ? 'border-purple-500 bg-purple-50 shadow-md'
                                         : 'border-gray-200 hover:border-gray-300 bg-white'
                                 }`}
                             >
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
-                                    articleTheme === 'v1' ? 'bg-blue-100' : 'bg-gray-100'
+                                    creationMode === 'ai-write' ? 'bg-purple-100' : 'bg-gray-100'
                                 }`}>
-                                    <FileText className={`w-5 h-5 ${articleTheme === 'v1' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                    <Wand2 className={`w-5 h-5 ${creationMode === 'ai-write' ? 'text-purple-600' : 'text-gray-500'}`} />
                                 </div>
-                                <h3 className="font-semibold text-gray-900">Standard Blog (V1)</h3>
+                                <h3 className="font-semibold text-gray-900">AI Write</h3>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Clean article format with basic HTML formatting
+                                    Give a topic & CTA link — AI writes the full advertorial
                                 </p>
-                                {articleTheme === 'v1' && (
-                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </div>
-                                )}
-                            </button>
-
-                            {/* V2 Option */}
-                            <button
-                                onClick={() => setArticleTheme('v2')}
-                                className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                                    articleTheme === 'v2'
-                                        ? 'border-emerald-500 bg-emerald-50 shadow-md'
-                                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                                }`}
-                            >
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
-                                    articleTheme === 'v2' ? 'bg-emerald-100' : 'bg-gray-100'
-                                }`}>
-                                    <FlaskConical className={`w-5 h-5 ${articleTheme === 'v2' ? 'text-emerald-600' : 'text-gray-500'}`} />
-                                </div>
-                                <h3 className="font-semibold text-gray-900">Scientific Advertorial (V2)</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    Rich components: tables, timelines, icon lists
-                                </p>
-                                {articleTheme === 'v2' && (
-                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                {creationMode === 'ai-write' && (
+                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
                                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                         </svg>
                                     </div>
                                 )}
                                 <div className="mt-2 flex flex-wrap gap-1">
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Tables</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Timelines</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Icons</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium">Claude Opus</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium">Auto Images</span>
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => setCreationMode('manual')}
+                                className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                                    creationMode === 'manual'
+                                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                                }`}
+                            >
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                                    creationMode === 'manual' ? 'bg-blue-100' : 'bg-gray-100'
+                                }`}>
+                                    <PenTool className={`w-5 h-5 ${creationMode === 'manual' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                </div>
+                                <h3 className="font-semibold text-gray-900">Manual Text</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Paste your own text — AI formats & adds images
+                                </p>
+                                {creationMode === 'manual' && (
+                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                )}
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">Gemini</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">Auto Images</span>
                                 </div>
                             </button>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Article Content</CardTitle>
-                        <CardDescription>
-                            Paste your raw text and let AI format it into a polished article
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* Slug Input */}
-                        <div className="space-y-2">
-                            <Label>Custom Slug (Optional)</Label>
-                            <div className="flex">
-                                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                                    /articles/
-                                </span>
-                                <Input
-                                    value={slug}
-                                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                                    className="rounded-l-none"
-                                    placeholder="my-article-slug"
-                                />
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                Leave blank to auto-generate from title
-                            </p>
-                        </div>
+                {/* ─── AI WRITE MODE ─── */}
+                {creationMode === 'ai-write' && (
+                    <>
+                        {/* Topic & Brief */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Wand2 className="h-5 w-5 text-purple-500" />
+                                    Advertorial Brief
+                                </CardTitle>
+                                <CardDescription>
+                                    Provide the topic and optionally a detailed brief. Claude Opus 4.6 will write the full article.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Topic / Angle <span className="text-red-500">*</span></Label>
+                                    <Input
+                                        value={topic}
+                                        onChange={(e) => setTopic(e.target.value)}
+                                        placeholder="e.g., Weighted blankets for anxiety relief in busy moms"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        The main angle for the advertorial. Be specific for better results.
+                                    </p>
+                                </div>
 
-                        {/* Raw Text Input */}
-                        <div className="space-y-2">
-                            <Label>Advertorial Text</Label>
-                            <Textarea
-                                value={rawText}
-                                onChange={(e) => setRawText(e.target.value)}
-                                className="min-h-[250px] resize-y"
-                                placeholder="Paste your raw article text here. The AI will format it, generate a title, and create comments..."
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+                                <div className="space-y-2">
+                                    <Label>Detailed Brief <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                                    <Textarea
+                                        value={brief}
+                                        onChange={(e) => setBrief(e.target.value)}
+                                        className="min-h-[120px] resize-y"
+                                        placeholder="Optional: Provide specific instructions, key claims, target audience details, pain points to address, tone preferences, etc. If left blank, the AI will autonomously craft the article based on the topic and product page."
+                                    />
+                                </div>
 
+                                <div className="space-y-2">
+                                    <Label>Custom Slug <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                                    <div className="flex">
+                                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                                            /articles/
+                                        </span>
+                                        <Input
+                                            value={slug}
+                                            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                                            className="rounded-l-none"
+                                            placeholder="my-article-slug"
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Style & Framework */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Writing Style</CardTitle>
+                                <CardDescription>
+                                    Choose the narrative approach and copywriting framework
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {/* Narrative Style */}
+                                <div className="space-y-3">
+                                    <Label>Narrative Style</Label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => setNarrativeStyle('first-person')}
+                                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                                narrativeStyle === 'first-person'
+                                                    ? 'border-purple-500 bg-purple-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <User className={`w-4 h-4 ${narrativeStyle === 'first-person' ? 'text-purple-600' : 'text-gray-400'}`} />
+                                                <span className="font-medium text-sm">First-Person Story</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">"I was struggling with X until I discovered..."</p>
+                                        </button>
+                                        <button
+                                            onClick={() => setNarrativeStyle('journalism')}
+                                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                                narrativeStyle === 'journalism'
+                                                    ? 'border-purple-500 bg-purple-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Newspaper className={`w-4 h-4 ${narrativeStyle === 'journalism' ? 'text-purple-600' : 'text-gray-400'}`} />
+                                                <span className="font-medium text-sm">Investigative Journalism</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">"Our reporters investigated the new trend..."</p>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Copywriting Framework */}
+                                <div className="space-y-3">
+                                    <Label>Copywriting Framework</Label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => setFramework('classic-dr')}
+                                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                                framework === 'classic-dr'
+                                                    ? 'border-purple-500 bg-purple-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <BookOpen className={`w-4 h-4 ${framework === 'classic-dr' ? 'text-purple-600' : 'text-gray-400'}`} />
+                                                <span className="font-medium text-sm">Classic Direct Response</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">Schwartz, Halbert, Ogilvy — proven sales copy</p>
+                                        </button>
+                                        <button
+                                            onClick={() => setFramework('modern-native')}
+                                            className={`p-3 rounded-lg border-2 transition-all text-left ${
+                                                framework === 'modern-native'
+                                                    ? 'border-purple-500 bg-purple-50'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Megaphone className={`w-4 h-4 ${framework === 'modern-native' ? 'text-purple-600' : 'text-gray-400'}`} />
+                                                <span className="font-medium text-sm">Modern Native Ad</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500">Brunson, Georgi — native ad prelander style</p>
+                                        </button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {/* ─── MANUAL MODE ─── */}
+                {creationMode === 'manual' && (
+                    <>
+                        {/* Theme Selection */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Article Theme</CardTitle>
+                                <CardDescription>
+                                    Choose the style and components for your article
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                        onClick={() => setArticleTheme('v1')}
+                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                                            articleTheme === 'v1'
+                                                ? 'border-blue-500 bg-blue-50 shadow-md'
+                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                        }`}
+                                    >
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                                            articleTheme === 'v1' ? 'bg-blue-100' : 'bg-gray-100'
+                                        }`}>
+                                            <FileText className={`w-5 h-5 ${articleTheme === 'v1' ? 'text-blue-600' : 'text-gray-500'}`} />
+                                        </div>
+                                        <h3 className="font-semibold text-gray-900">Standard Blog (V1)</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Clean article format with basic HTML formatting</p>
+                                        {articleTheme === 'v1' && (
+                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        onClick={() => setArticleTheme('v2')}
+                                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                                            articleTheme === 'v2'
+                                                ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                                        }`}
+                                    >
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
+                                            articleTheme === 'v2' ? 'bg-emerald-100' : 'bg-gray-100'
+                                        }`}>
+                                            <FlaskConical className={`w-5 h-5 ${articleTheme === 'v2' ? 'text-emerald-600' : 'text-gray-500'}`} />
+                                        </div>
+                                        <h3 className="font-semibold text-gray-900">Scientific Advertorial (V2)</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Rich components: tables, timelines, icon lists</p>
+                                        {articleTheme === 'v2' && (
+                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                        <div className="mt-2 flex flex-wrap gap-1">
+                                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Tables</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Timelines</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-medium">Icons</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Article Content */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Article Content</CardTitle>
+                                <CardDescription>Paste your raw text and let AI format it into a polished article</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="space-y-2">
+                                    <Label>Custom Slug (Optional)</Label>
+                                    <div className="flex">
+                                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                                            /articles/
+                                        </span>
+                                        <Input
+                                            value={slug}
+                                            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                                            className="rounded-l-none"
+                                            placeholder="my-article-slug"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Leave blank to auto-generate from title</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Advertorial Text</Label>
+                                    <Textarea
+                                        value={rawText}
+                                        onChange={(e) => setRawText(e.target.value)}
+                                        className="min-h-[250px] resize-y"
+                                        placeholder="Paste your raw article text here. The AI will format it, generate a title, and create comments..."
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {/* ─── SHARED: Domain Selection ─── */}
+                {domains.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Globe className="h-5 w-5 text-purple-500" />
+                                Domain & Branding
+                            </CardTitle>
+                            <CardDescription>Choose which domain this article will be published under</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Select value={selectedDomainId || "auto"} onValueChange={(val) => setSelectedDomainId(val === "auto" ? "" : val)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a domain..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="auto">Auto-detect from URL</SelectItem>
+                                    {domains.map(d => (
+                                        <SelectItem key={d.id} value={d.id}>
+                                            <span className="flex items-center gap-2">
+                                                <span className="inline-flex w-4 h-4 rounded-sm text-white text-[8px] items-center justify-center font-bold" style={{ backgroundColor: d.logo_color }}>
+                                                    {d.logo_letter}
+                                                </span>
+                                                {d.brand_name} — {d.domain}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* ─── SHARED: Tracking & CTA ─── */}
                 <Card>
                     <CardHeader>
                         <CardTitle>Tracking & CTA</CardTitle>
                         <CardDescription>
-                            Configure the Facebook Pixel and call-to-action for this article
+                            {creationMode === 'ai-write'
+                                ? 'The CTA URL is required — AI will analyze the product page to write the advertorial'
+                                : 'Configure the Facebook Pixel and call-to-action for this article'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -354,7 +667,9 @@ export default function CreateArticlePage() {
 
                         {/* CTA URL Selection */}
                         <div className="space-y-2">
-                            <Label>CTA URL</Label>
+                            <Label>
+                                CTA URL {creationMode === 'ai-write' && <span className="text-red-500">*</span>}
+                            </Label>
                             {!isAddingCta ? (
                                 <div className="flex gap-2">
                                     <Select value={selectedCta} onValueChange={setSelectedCta}>
@@ -389,6 +704,11 @@ export default function CreateArticlePage() {
                                     </Button>
                                 </div>
                             )}
+                            {creationMode === 'ai-write' && (
+                                <p className="text-xs text-muted-foreground">
+                                    AI will scrape this URL to understand the product and write a tailored advertorial
+                                </p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -398,16 +718,22 @@ export default function CreateArticlePage() {
                     onClick={handleGenerate}
                     disabled={loading}
                     size="lg"
-                    className="w-full"
+                    className={`w-full ${creationMode === 'ai-write' ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
                 >
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Generate {articleTheme === 'v2' ? 'V2 Advertorial' : 'Article'} with AI
+                    {creationMode === 'ai-write'
+                        ? 'Generate Advertorial with Claude Opus'
+                        : `Generate ${articleTheme === 'v2' ? 'V2 Advertorial' : 'Article'} with AI`
+                    }
                 </Button>
 
                 <p className="text-center text-xs text-muted-foreground">
-                    Powered by Google Gemini. {articleTheme === 'v2' 
-                        ? 'Generates rich components, title, and comments automatically.'
-                        : 'Generates title, content, and comments automatically.'}
+                    {creationMode === 'ai-write'
+                        ? 'Claude Opus 4.6 writes the article. Nano Banana Pro generates images. Full automation.'
+                        : `Powered by Nano Banana Pro. ${articleTheme === 'v2'
+                            ? 'Generates rich components, title, and comments automatically.'
+                            : 'Generates title, content, and comments automatically.'}`
+                    }
                 </p>
             </div>
         </>

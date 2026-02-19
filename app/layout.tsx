@@ -17,8 +17,8 @@ const merriweather = Merriweather({
 });
 
 export const metadata: Metadata = {
-  title: "Top Health Insider - Breaking News",
-  description: "Investigative health reports and breaking news.",
+  title: "Breaking News & Trending Reports",
+  description: "Investigative reports and breaking news.",
 };
 
 export default function RootLayout({

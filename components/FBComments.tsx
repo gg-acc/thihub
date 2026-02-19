@@ -97,9 +97,10 @@ const Comment = ({ author, avatar, content, time, likes: initialLikes, hasReplie
 
 interface FBCommentsProps {
     comments?: CommentData[];
+    brandName?: string;
 }
 
-export default function FBComments({ comments = [] }: FBCommentsProps) {
+export default function FBComments({ comments = [], brandName = 'The Insider' }: FBCommentsProps) {
     if (!comments || comments.length === 0) {
         return (
             <div className="bg-white p-4 border-t border-gray-200 mt-8 font-sans">
@@ -107,7 +108,7 @@ export default function FBComments({ comments = [] }: FBCommentsProps) {
                     <h3 className="font-bold text-[#050505] text-lg font-sans">Comments</h3>
                 </div>
                 <p className="text-gray-500 text-sm italic">No comments yet.</p>
-                <CopyrightFooter />
+                <CopyrightFooter brandName={brandName} />
             </div>
         );
     }
@@ -136,16 +137,16 @@ export default function FBComments({ comments = [] }: FBCommentsProps) {
                 </button>
             </div>
 
-            <CopyrightFooter />
+            <CopyrightFooter brandName={brandName} />
         </div>
     );
 }
 
-function CopyrightFooter() {
+function CopyrightFooter({ brandName = 'The Insider' }: { brandName?: string }) {
     return (
         <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-center text-[11px] text-[#65676B] leading-relaxed font-sans">
-                Copyright © {new Date().getFullYear()} Top Health Insider. All rights reserved. Top Health Insider does not provide medical advice, diagnosis, or treatment. See{' '}
+                Copyright © {new Date().getFullYear()} {brandName}. All rights reserved. {brandName} does not provide medical advice, diagnosis, or treatment. See{' '}
                 <Link href="/disclaimer" className="text-[#1877F2] hover:underline">
                     Additional Information
                 </Link>.

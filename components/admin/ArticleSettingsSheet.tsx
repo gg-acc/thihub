@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { ShieldCheck, BarChart3, Globe, Plus, Settings } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import GlobalSettingsSheet from '@/components/admin/GlobalSettingsSheet';
+import type { Domain } from '@/components/admin/GlobalSettingsSheet';
 import { cn } from '@/lib/utils';
 
 interface Article {
@@ -32,6 +33,7 @@ interface Article {
     stickyCTAOriginalPrice?: string;
     stickyCTAProductName?: string;
     articleTheme?: 'v1' | 'v2';
+    domainId?: string;
 }
 
 interface ArticleSettingsSheetProps {
@@ -44,6 +46,16 @@ interface ArticleSettingsSheetProps {
 export default function ArticleSettingsSheet({ open, onOpenChange, article, setArticle }: ArticleSettingsSheetProps) {
     const { pixels, ctaUrls, isLoading } = useAdminSettings();
     const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false);
+    const [domains, setDomains] = useState<Domain[]>([]);
+
+    const fetchDomains = useCallback(async () => {
+        try {
+            const res = await fetch('/api/domains');
+            if (res.ok) setDomains(await res.json());
+        } catch { /* ignore */ }
+    }, []);
+
+    useEffect(() => { fetchDomains(); }, [fetchDomains]);
 
     return (
         <>
@@ -57,6 +69,44 @@ export default function ArticleSettingsSheet({ open, onOpenChange, article, setA
                     </SheetHeader>
 
                     <div className="py-6 space-y-8">
+                        {/* Domain / Branding */}
+                        {domains.length > 0 && (
+                            <>
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                                        <Globe className="w-4 h-4 text-purple-500" />
+                                        Domain & Branding
+                                    </h3>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-muted-foreground">Publish to Domain</Label>
+                                        <Select
+                                            value={article.domainId || "none"}
+                                            onValueChange={(val) => setArticle(prev => ({ ...prev, domainId: val === "none" ? undefined : val }))}
+                                        >
+                                            <SelectTrigger className="w-full">
+                                                <SelectValue placeholder="Select a domain..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Auto-detect from URL</SelectItem>
+                                                {domains.map(d => (
+                                                    <SelectItem key={d.id} value={d.id}>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-4 h-4 rounded-sm text-white text-[8px] flex items-center justify-center font-bold" style={{ backgroundColor: d.logo_color }}>
+                                                                {d.logo_letter}
+                                                            </div>
+                                                            {d.brand_name} — {d.domain}
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">The article will use this domain&apos;s branding (logo, name, colors).</p>
+                                    </div>
+                                </div>
+                                <Separator />
+                            </>
+                        )}
+
                         {/* Tracking Configuration */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">

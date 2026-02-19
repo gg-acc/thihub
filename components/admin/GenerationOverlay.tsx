@@ -3,17 +3,26 @@
 import React, { useEffect, useState } from 'react';
 
 interface GenerationOverlayProps {
-    stage: number; // 0-3 for different stages
+    stage: number;
+    mode?: 'manual' | 'ai-write';
 }
 
-const STAGES = [
-    { label: 'Analyzing your text', icon: '🔍' },
+const MANUAL_STAGES = [
+    { label: 'Analyzing product page', icon: '🔍' },
     { label: 'Structuring content', icon: '📐' },
-    { label: 'Generating comments', icon: '💬' },
+    { label: 'Generating AI images', icon: '🎨' },
+    { label: 'Building your article', icon: '✨' },
+];
+
+const AI_WRITE_STAGES = [
+    { label: 'Analyzing product page', icon: '🔍' },
+    { label: 'Claude Opus 4.6 is writing', icon: '✍️' },
+    { label: 'Generating AI images', icon: '🎨' },
     { label: 'Finalizing article', icon: '✨' },
 ];
 
-export default function GenerationOverlay({ stage }: GenerationOverlayProps) {
+export default function GenerationOverlay({ stage, mode = 'manual' }: GenerationOverlayProps) {
+    const STAGES = mode === 'ai-write' ? AI_WRITE_STAGES : MANUAL_STAGES;
     const [dots, setDots] = useState('');
     const [particleKey, setParticleKey] = useState(0);
 
@@ -134,7 +143,10 @@ export default function GenerationOverlay({ stage }: GenerationOverlayProps) {
 
                 {/* Subtle tip */}
                 <p className="mt-10 text-white/30 text-xs">
-                    This usually takes 10-15 seconds
+                    {mode === 'ai-write'
+                        ? 'Claude Opus 4.6 is writing your advertorial — this may take up to 2 minutes'
+                        : 'Generating images takes a bit longer — usually 30-60 seconds'
+                    }
                 </p>
             </div>
 
