@@ -17,8 +17,9 @@ const MANUAL_STAGES = [
 const AI_WRITE_STAGES = [
     { label: 'Analyzing product page', icon: '🔍' },
     { label: 'Claude Opus 4.6 is writing', icon: '✍️' },
-    { label: 'Generating AI images', icon: '🎨' },
-    { label: 'Finalizing article', icon: '✨' },
+    { label: 'Generating product images', icon: '🎨' },
+    { label: 'Assembling article', icon: '📐' },
+    { label: 'Finalizing', icon: '✨' },
 ];
 
 export default function GenerationOverlay({ stage, mode = 'manual' }: GenerationOverlayProps) {

@@ -124,43 +124,31 @@ export default function CreateArticlePage() {
         setLoading(true);
         setGenerationStage(0);
 
-        if (creationMode === 'ai-write') {
-            // AI Write: Opus takes longer but writes much better
-            startStageTimers([8000, 60000, 40000]);
-        } else {
-            // Manual: existing flow
-            startStageTimers([5000, 10000, 25000]);
-        }
-
         const safeJson = async (r: Response) => {
             const text = await r.text();
             try { return JSON.parse(text); }
-            catch { throw new Error('Server timed out. Please try again.'); }
+            catch { throw new Error('Server timed out or crashed. Please try again.'); }
         };
+
+        if (creationMode === 'ai-write') {
+            // AI Write: single call does everything (scrape → write → images → save)
+            startStageTimers([5000, 30000, 60000, 30000]);
+        } else {
+            startStageTimers([5000, 10000, 25000]);
+        }
 
         try {
             let res: Response;
 
             if (creationMode === 'ai-write') {
-                // === STEP 1: Scrape CTA URL ===
+                // Single API call — everything happens server-side
                 setGenerationStage(0);
-                const scrapeRes = await fetch('/api/generate-advertorial', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ctaUrl: finalCta }),
-                });
-                const scrapeData = await safeJson(scrapeRes);
-                if (!scrapeRes.ok) throw new Error(scrapeData.error || 'Failed to analyze product page');
-
-                // === STEP 2: Claude writes the article ===
-                setGenerationStage(1);
-                const writeRes = await fetch('/api/generate-advertorial/write', {
+                res = await fetch('/api/generate-advertorial', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         topic,
                         ctaUrl: finalCta,
-                        productText: scrapeData.productText,
                         brief: brief || undefined,
                         narrativeStyle,
                         framework,
@@ -169,32 +157,16 @@ export default function CreateArticlePage() {
                         domainId: selectedDomainId || undefined,
                     }),
                 });
-                const writeData = await safeJson(writeRes);
-                if (!writeRes.ok) throw new Error(writeData.error || 'Failed to write article');
 
-                // === STEP 3: Generate product-specific images ===
-                setGenerationStage(2);
-                try {
-                    const imgRes = await fetch('/api/generate-images', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            slug: writeData.slug,
-                            imagePrompts: writeData.imagePrompts || [],
-                            productContext: scrapeData.productText?.slice(0, 2000) || '',
-                        }),
-                    });
-                    const imgData = await imgRes.json().catch(() => ({}));
-                    console.log('[ai-write] Image result:', imgData);
-                    if (imgData.imagesGenerated) {
-                        toast.success(`${imgData.imagesGenerated} images generated!`);
-                    }
-                } catch (imgErr) {
-                    console.warn('Image generation failed:', imgErr);
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Failed to generate advertorial');
+
+                if (data.imagesGenerated) {
+                    toast.success(`Article created with ${data.imagesGenerated} AI images!`);
+                } else {
+                    toast.success('Article generated successfully!');
                 }
-
-                toast.success('Article generated successfully!');
-                router.push(`/admin/articles/${writeData.slug}`);
+                router.push(`/admin/articles/${data.slug}`);
 
             } else {
                 // Manual mode: single request
