@@ -172,7 +172,7 @@ export default function CreateArticlePage() {
                 const writeData = await safeJson(writeRes);
                 if (!writeRes.ok) throw new Error(writeData.error || 'Failed to write article');
 
-                // === STEP 3: Generate images ===
+                // === STEP 3: Generate product-specific images ===
                 setGenerationStage(2);
                 try {
                     const imgRes = await fetch('/api/generate-images', {
@@ -180,6 +180,7 @@ export default function CreateArticlePage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             slug: writeData.slug,
+                            imagePrompts: writeData.imagePrompts || [],
                             productContext: scrapeData.productText?.slice(0, 2000) || '',
                         }),
                     });

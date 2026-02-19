@@ -46,10 +46,29 @@ PRODUCT PAGE (${ctaUrl}): ${productText}
 ${frameworkInst}
 ${narrativeInst}${briefInst}
 
-RULES: 1500-2500 words. Genuine editorial feel, not an ad. Never say "ad"/"sponsored". Build emotion before product. Include 2-3 testimonial quotes. Soft CTA ending.
+RULES:
+- 1500-2500 words. Genuine editorial feel, not an ad. Never say "ad"/"sponsored".
+- Build emotion before product. Include 2-3 testimonial quotes. Soft CTA ending.
+- In the HTML content, insert exactly 5 image placeholders using: <figure data-image-index="0"></figure> through <figure data-image-index="4"></figure>
+- Place them at natural visual break points throughout the article (after intro, in problem section, in science/mechanism section, in results section, near end).
+- The first placeholder (index 0) will become the hero/header image.
+
+IMAGE PROMPTS — This is critical. You must also return "imagePrompts": an array of exactly 5 detailed image generation prompts. Each prompt must:
+1. Be specific to THIS product and THIS article's story — not generic stock photo descriptions
+2. Reference the actual product appearance, ingredients, packaging, or usage scenario from the product page
+3. Match the narrative moment where the image appears in the article
+4. Describe the scene in vivid detail: setting, lighting, objects, people, mood, colors
+5. Never include text/words/logos/watermarks in the image
+
+Example image prompts for a mineral supplement advertorial:
+- "Photorealistic close-up of a woman's hand holding a small glass dropper bottle with amber liquid, dropping sublingual mineral drops under her tongue. Morning light through a kitchen window. Clean, modern kitchen background. Warm tones."
+- "Medical illustration style: cross-section diagram of a human thyroid gland with mineral molecules (zinc, copper, magnesium) shown being absorbed. Clean white background, scientific but accessible. Soft blues and greens."
+- "Before and after style split image: left side shows a tired, stressed woman in grey tones looking at herself in a bathroom mirror; right side shows the same woman months later, vibrant and confident in warm golden tones, smiling in a sundress outdoors."
+
+Adapt this concept to whatever product is being sold. If it's a cream, show the cream. If it's a supplement, show the supplement. If the article discusses a mechanism, show that mechanism visually.
 
 Return ONLY this JSON (no markdown fences):
-{"title":"Headline","subtitle":"Subheadline","author":"Name","reviewer":"Dr. Name, MD","date":"Updated: 2 hours ago","content":"<p>Full article as HTML with p/h2/h3/blockquote/strong/em/ul/ol tags. NO title/subtitle here.</p>","keyTakeaways":[{"title":"Title","content":"Sentence"},{"title":"Title","content":"Sentence"},{"title":"Title","content":"Sentence"}],"comments":[{"id":"c1","author":"Name","avatar":"https://picsum.photos/seed/c1/100","content":"Comment","time":"2h","likes":45,"hasReplies":false,"isLiked":true},{"id":"c2","author":"Name","avatar":"https://picsum.photos/seed/c2/100","content":"Comment","time":"5h","likes":23,"hasReplies":false,"isLiked":false},{"id":"c3","author":"Name","avatar":"https://picsum.photos/seed/c3/100","content":"Comment","time":"8h","likes":67,"hasReplies":true,"isLiked":true},{"id":"c4","author":"Name","avatar":"https://picsum.photos/seed/c4/100","content":"Comment","time":"1d","likes":12,"hasReplies":false,"isLiked":false},{"id":"c5","author":"Name","avatar":"https://picsum.photos/seed/c5/100","content":"Comment","time":"1d","likes":34,"hasReplies":false,"isLiked":true}]}`;
+{"title":"Headline","subtitle":"Subheadline","author":"Name","reviewer":"Dr. Name, MD","date":"Updated: 2 hours ago","content":"<p>Full article HTML with p/h2/h3/blockquote/strong/em/ul/ol tags and 5 <figure data-image-index=\\"N\\"></figure> placeholders. NO title/subtitle here.</p>","imagePrompts":["Detailed prompt for hero image...","Detailed prompt for image 2...","Detailed prompt for image 3...","Detailed prompt for image 4...","Detailed prompt for image 5..."],"keyTakeaways":[{"title":"Title","content":"Sentence"},{"title":"Title","content":"Sentence"},{"title":"Title","content":"Sentence"}],"comments":[{"id":"c1","author":"Name","avatar":"https://picsum.photos/seed/c1/100","content":"Comment about the specific product","time":"2h","likes":45,"hasReplies":false,"isLiked":true},{"id":"c2","author":"Name","avatar":"https://picsum.photos/seed/c2/100","content":"Comment","time":"5h","likes":23,"hasReplies":false,"isLiked":false},{"id":"c3","author":"Name","avatar":"https://picsum.photos/seed/c3/100","content":"Comment","time":"8h","likes":67,"hasReplies":true,"isLiked":true},{"id":"c4","author":"Name","avatar":"https://picsum.photos/seed/c4/100","content":"Comment","time":"1d","likes":12,"hasReplies":false,"isLiked":false},{"id":"c5","author":"Name","avatar":"https://picsum.photos/seed/c5/100","content":"Comment","time":"1d","likes":34,"hasReplies":false,"isLiked":true}]}`;
 
         console.log('[step2] Claude writing...');
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -116,7 +135,11 @@ Return ONLY this JSON (no markdown fences):
 
         console.log('[step2] Saved:', newArticle.slug);
 
-        return NextResponse.json({ success: true, slug: newArticle.slug });
+        return NextResponse.json({
+            success: true,
+            slug: newArticle.slug,
+            imagePrompts: generatedData.imagePrompts || [],
+        });
     } catch (error) {
         console.error('[step2] Error:', error);
         return NextResponse.json({ error: 'Failed to write article' }, { status: 500 });

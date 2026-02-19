@@ -46,7 +46,6 @@ async function generateAndUploadImage(prompt: string, supabase: any): Promise<st
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) return null;
 
-        // Try models with fallback
         let result: { buffer: Buffer; mimeType: string } | null = null;
         for (const model of IMAGE_MODELS) {
             result = await callImageModel(model, prompt, apiKey);
@@ -82,6 +81,28 @@ async function generateAndUploadImage(prompt: string, supabase: any): Promise<st
     }
 }
 
+// Replace <figure data-image-index="N"></figure> placeholders with actual images
+function fillImagePlaceholders(contentHtml: string, imageUrls: (string | null)[]): string {
+    let result = contentHtml;
+    for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        if (url) {
+            result = result.replace(
+                new RegExp(`<figure\\s+data-image-index="${i}"\\s*>\\s*</figure>`, 'i'),
+                `<figure class="my-8"><img src="${url}" alt="" class="w-full rounded-lg shadow-md" /></figure>`
+            );
+        } else {
+            // Remove unfilled placeholder
+            result = result.replace(
+                new RegExp(`<figure\\s+data-image-index="${i}"\\s*>\\s*</figure>`, 'i'),
+                ''
+            );
+        }
+    }
+    return result;
+}
+
+// Fallback: insert images at natural break points if no placeholders exist
 function insertInlineImages(contentHtml: string, imageUrls: string[]): string {
     if (imageUrls.length === 0) return contentHtml;
 
@@ -119,7 +140,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { slug, productContext } = await request.json();
+        const { slug, imagePrompts, productContext } = await request.json();
 
         if (!slug) {
             return NextResponse.json({ error: 'Slug is required' }, { status: 400 });
@@ -136,52 +157,67 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Article not found' }, { status: 404 });
         }
 
-        const baseStyle = 'Create a high-quality, photorealistic editorial photograph. Professional stock photo for a premium online magazine. Clean, modern, well-lit. Do NOT include any text, watermarks, logos, or words.';
-        const productInfo = productContext ? `\n\nPRODUCT CONTEXT:\n${productContext}` : '';
+        // Use Claude's specific image prompts if provided, otherwise build generic ones
+        let prompts: string[];
+        const baseRule = 'Create a high-quality, photorealistic image. Do NOT include any text, watermarks, logos, or words in the image.';
 
-        const contentText = (article.content || '').replace(/<[^>]+>/g, '\n');
-        const paragraphs = contentText.split('\n').filter((p: string) => p.trim().length > 50);
+        if (imagePrompts && imagePrompts.length > 0) {
+            console.log(`[images] Using ${imagePrompts.length} Claude-generated image prompts`);
+            prompts = imagePrompts.map((p: string) => `${baseRule}\n\n${p}`);
+        } else {
+            // Fallback: generic prompts based on article content
+            console.log('[images] No image prompts from Claude, using generic prompts');
+            const productInfo = productContext ? `\n\nPRODUCT CONTEXT:\n${productContext}` : '';
+            const contentText = (article.content || '').replace(/<[^>]+>/g, '\n');
+            const paragraphs = contentText.split('\n').filter((p: string) => p.trim().length > 50);
 
-        // Generate 3 images in parallel: hero + 2 inline
-        const prompts = [
-            `${baseStyle}\n\nHERO image for article titled "${article.title}" — "${article.subtitle}". Dramatic, cinematic, lifestyle scene.${productInfo}`,
-            `${baseStyle}\n\nEditorial image for middle of article about "${article.title}". Context: "${paragraphs.slice(Math.floor(paragraphs.length * 0.3), Math.floor(paragraphs.length * 0.5)).join(' ').slice(0, 300)}".${productInfo}`,
-            `${baseStyle}\n\nImage for the results section of "${article.title}". Context: "${paragraphs.slice(Math.floor(paragraphs.length * 0.7)).join(' ').slice(0, 300)}". Convey transformation, satisfaction.${productInfo}`,
-        ];
+            prompts = [
+                `${baseRule}\n\nHERO image for article titled "${article.title}" — "${article.subtitle}". Dramatic, cinematic, lifestyle scene.${productInfo}`,
+                `${baseRule}\n\nEditorial image for middle of article about "${article.title}". Context: "${paragraphs.slice(Math.floor(paragraphs.length * 0.3), Math.floor(paragraphs.length * 0.5)).join(' ').slice(0, 300)}".${productInfo}`,
+                `${baseRule}\n\nImage for the results section of "${article.title}". Context: "${paragraphs.slice(Math.floor(paragraphs.length * 0.7)).join(' ').slice(0, 300)}". Convey transformation, satisfaction.${productInfo}`,
+            ];
+        }
 
-        console.log('[images] Generating 3 images for:', slug);
+        console.log(`[images] Generating ${prompts.length} images for: ${slug}`);
         const imageResults = await Promise.all(
             prompts.map(p => generateAndUploadImage(p, supabase))
         );
 
-        const heroImage = imageResults[0];
-        const inlineImages = imageResults.slice(1).filter(Boolean) as string[];
-        console.log(`[images] Generated ${inlineImages.length + (heroImage ? 1 : 0)} images`);
+        const successCount = imageResults.filter(Boolean).length;
+        console.log(`[images] Generated ${successCount}/${prompts.length} images`);
 
-        // Update article with images
-        const updates: any = {};
+        // Update article
+        const updates: any = { updated_at: new Date().toISOString() };
 
-        if (heroImage) {
-            updates.image = heroImage;
+        // Hero image = first result
+        if (imageResults[0]) {
+            updates.image = imageResults[0];
         }
 
-        if (inlineImages.length > 0) {
-            updates.content = insertInlineImages(article.content, inlineImages);
+        // Check if content has placeholders from Claude
+        const hasPlaceholders = /data-image-index=/.test(article.content || '');
+
+        if (hasPlaceholders) {
+            // Fill the placeholder tags Claude placed in the HTML
+            updates.content = fillImagePlaceholders(article.content, imageResults);
+        } else {
+            // Fallback: insert inline images at break points (skip hero = index 0)
+            const inlineImages = imageResults.slice(1).filter(Boolean) as string[];
+            if (inlineImages.length > 0) {
+                updates.content = insertInlineImages(article.content, inlineImages);
+            }
         }
 
-        if (Object.keys(updates).length > 0) {
-            updates.updated_at = new Date().toISOString();
-            const { error: updateError } = await supabase
-                .from('articles')
-                .update(updates)
-                .eq('slug', slug);
+        const { error: updateError } = await supabase
+            .from('articles')
+            .update(updates)
+            .eq('slug', slug);
 
-            if (updateError) throw updateError;
-        }
+        if (updateError) throw updateError;
 
         return NextResponse.json({
             success: true,
-            imagesGenerated: inlineImages.length + (heroImage ? 1 : 0),
+            imagesGenerated: successCount,
         });
     } catch (error) {
         console.error('Error generating images:', error);
